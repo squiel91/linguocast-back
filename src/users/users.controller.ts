@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Post,
@@ -9,7 +10,7 @@ import {
 import { UsersService } from './users.service'
 import { CreateUserDto, AuthenticateUserDto } from './users.validation'
 
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { createParamDecorator, ExecutionContext } from '@nestjs/common'
 
 export const Cookies = createParamDecorator(
   (data: string, ctx: ExecutionContext) => {
@@ -22,7 +23,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('/profile')
-  async getUserProfile(@Cookies('token') token: string) {
+  async getUserProfile(@Headers('Authorization') token: string) {
     return await this.usersService.getUserProfile(token)
   }
 

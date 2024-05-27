@@ -15,7 +15,7 @@ CREATE TABLE users (
 
 CREATE TABLE podcasts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name VARCHAR(32) NOT NULL,
+  name VARCHAR(64) NOT NULL,
   description TEXT NOT NULL,
   coverImage VARCHAR(256),
   levels JSON,
