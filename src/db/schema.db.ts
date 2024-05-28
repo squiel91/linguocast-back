@@ -36,6 +36,12 @@ interface PodcastsTable {
   updatedAt: ColumnType<string, string | undefined, never>
 }
 
+interface SavedPodcasts {
+  userId: number
+  podcastId: number
+  createdAt: ColumnType<string, string | undefined, never>
+}
+
 interface CommentsTable {
   id: Generated<number>
   podcastId: number
@@ -49,6 +55,7 @@ export interface Database {
   languages: LanguagesTable
   users: UsersTable
   podcasts: PodcastsTable
+  savedPodcasts: SavedPodcast
   comments: CommentsTable
 }
 
@@ -60,6 +67,9 @@ export type NewUser = Insertable<UsersTable>
 
 export type Podcast = Selectable<PodcastsTable>
 export type NewPodcast = Insertable<PodcastsTable>
+
+export type SavedPodcast = Selectable<SavedPodcasts>
+export type NewSavedPodcast = Insertable<SavedPodcasts>
 
 export type Comment = Selectable<CommentsTable>
 export type NewComment = Insertable<CommentsTable>

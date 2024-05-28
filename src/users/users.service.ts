@@ -35,16 +35,7 @@ export class UsersService {
     }
   }
 
-  async getUserProfile(tokenOrUserId: string | number) {
-    let userId: number
-    if (typeof tokenOrUserId === 'number') {
-      userId = tokenOrUserId
-    } else {
-      const payload = decodeAuthToken(tokenOrUserId)
-      if (!payload) throw new UnauthorizedException()
-      userId = payload.id
-    }
-
+  async getUserProfile(userId: number) {
     return await db
       .selectFrom('users')
       .select(['id', 'name'])

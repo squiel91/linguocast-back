@@ -37,6 +37,15 @@ CREATE TABLE podcasts (
   FOREIGN KEY (uploadedByUserId) REFERENCES users(id)
 );
 
+CREATE TABLE savedPodcasts (
+    userId INTEGER NOT NULL,
+    podcastId INTEGER NOT NULL,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (userId) REFERENCES users(id),
+    FOREIGN KEY (podcastId) REFERENCES podcasts(id),
+    UNIQUE(userId, podcastId)
+);
+
 CREATE TABLE comments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     podcastId INTEGER NOT NULL,

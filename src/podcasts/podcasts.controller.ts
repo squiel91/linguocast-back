@@ -10,6 +10,9 @@ import {
   ParseFilePipeBuilder,
   HttpStatus,
   Param,
+  HttpCode,
+  Delete,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { PodcastsService } from './podcasts.service'
 
@@ -18,24 +21,27 @@ import { PodcastCreationDto } from './podcasts.validation'
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { UserIdOr } from 'src/auth/auth.decorators';
 
 @Controller('/api/podcasts')
 export class PodcastsController {
   constructor(private readonly podcastsService: PodcastsService) {}
 
   @Get('/')
-  async findPodcasts(
-  ) {
+  async findPodcasts() {
     return await this.podcastsService.getAllPodcasts()
   }
 
   @Get('/:podcastId')
-  async getPodcastById(@Param('podcastId') podcastId: number) {
-    return await this.podcastsService.getPodcastById(podcastId)
+  async getPodcastById(
+    @Param('podcastId') podcastId: number,
+    @UserIdOr(() => null) userId: number | null
+  ) {
+    return await this.podcastsService.getPodcastById(podcastId, userId)
   }
 
   @Post('/')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard) // TODO: check if this is necessary
   @UseInterceptors(
     FileInterceptor('coverImage', {
       storage: diskStorage({
@@ -46,6 +52,10 @@ export class PodcastsController {
     })
   )
   async createPodcast(
+    @UserIdOr(() => {
+      throw new UnauthorizedException()
+    })
+    userId: number,
     @Body() createPodcastDto: PodcastCreationDto,
     @UploadedFile(
       new ParseFilePipeBuilder()
@@ -53,17 +63,15 @@ export class PodcastsController {
         .addMaxSizeValidator({ maxSize: 1000000 })
         .build({
           errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          fileIsRequired: false, // This makes the file optional
+          fileIsRequired: false
         })
     )
-    coverImage: Express.Multer.File,
-    @Request() req
+    coverImage: Express.Multer.File | undefined,
   ) {
-    console.log({ coverImage })
     return await this.podcastsService.createPodcast({
       name: createPodcastDto.name,
       description: createPodcastDto.description,
-      coverImage: coverImage.filename,
+      coverImage: coverImage?.filename,
       links: createPodcastDto.links,
       levels: createPodcastDto.levels,
       targetLanguage: createPodcastDto.targetLanguage,
@@ -75,7 +83,31 @@ export class PodcastsController {
       avarageEpisodeMinutesDuration:
         createPodcastDto.avarageEpisodeMinutesDuration,
       hasTranscript: createPodcastDto.hasTranscript ? 1 : 0,
-      uploadedByUserId: req.userId as number
+      uploadedByUserId: userId
     })
+  }
+
+  @Post('/:podcastId/saves')
+  @HttpCode(HttpStatus.CREATED)
+  async savePodcast(
+    @UserIdOr(() => {
+      throw new UnauthorizedException()
+    })
+    userId: number,
+    @Param('podcastId') podcastId: number
+  ) {
+    await this.podcastsService.savePodcast(userId, podcastId)
+  }
+
+  @Delete('/:podcastId/saves')
+  @HttpCode(HttpStatus.CREATED)
+  async removeSavedPodcast(
+    @UserIdOr(() => {
+      throw new UnauthorizedException()
+    })
+    userId: number,
+    @Param('podcastId') podcastId: number
+  ) {
+    await this.podcastsService.removeSavedPodcast(userId, podcastId)
   }
 }

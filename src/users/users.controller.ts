@@ -2,15 +2,16 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   HttpCode,
   HttpStatus,
   Post,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { UsersService } from './users.service'
 import { CreateUserDto, AuthenticateUserDto } from './users.validation'
 
 import { createParamDecorator, ExecutionContext } from '@nestjs/common'
+import { UserIdOr } from 'src/auth/auth.decorators';
 
 export const Cookies = createParamDecorator(
   (data: string, ctx: ExecutionContext) => {
@@ -23,8 +24,13 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('/profile')
-  async getUserProfile(@Headers('Authorization') token: string) {
-    return await this.usersService.getUserProfile(token)
+  async getUserProfile(
+    @UserIdOr(() => {
+      throw new UnauthorizedException()
+    })
+    userId: number
+  ) {
+    return await this.usersService.getUserProfile(userId)
   }
 
   @Post('/authenticate')

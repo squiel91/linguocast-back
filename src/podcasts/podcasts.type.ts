@@ -5,4 +5,5 @@ export interface RawMinifiedPodcast {
   coverImage: string
   targetLanguage: string
   rawLevels: string
+  savedCount: number
 }
