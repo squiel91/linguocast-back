@@ -19,6 +19,7 @@ CREATE TABLE podcasts (
   description TEXT NOT NULL,
   coverImage VARCHAR(256),
   levels JSON,
+  rss VARCHAR(256),
   links JSON,
   targetLanguageId INTEGER NOT NULL,
   mediumLanguageId INTEGER,
@@ -35,6 +36,19 @@ CREATE TABLE podcasts (
   FOREIGN KEY (targetLanguageId) REFERENCES languages(id),
   FOREIGN KEY (mediumLanguageId) REFERENCES languages(id),
   FOREIGN KEY (uploadedByUserId) REFERENCES users(id)
+);
+
+CREATE TABLE episodes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  podcastId INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  image TEXT,
+  duration INTEGER NOT NULL,
+  description TEXT,
+  contentUrl TEXT NOT NULL,
+  publishedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE savedPodcasts (

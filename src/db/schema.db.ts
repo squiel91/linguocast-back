@@ -20,6 +20,7 @@ interface PodcastsTable {
   name: string
   description: string
   coverImage: string | null
+  rss: string | null 
   links: string | null
   levels: string
   targetLanguageId: number
@@ -51,11 +52,25 @@ interface CommentsTable {
   updatedAt: ColumnType<string, string | undefined, never>
 }
 
+interface EpisodesTable {
+  id: Generated<number>
+  podcastId: number
+  title: string
+  image?: string
+  duration: number
+  description?: string
+  contentUrl: string
+  publishedAt: string
+  createdAt: ColumnType<string, string | undefined, never>
+  updatedAt: ColumnType<string, string | undefined, never>
+}
+
 export interface Database {
   languages: LanguagesTable
   users: UsersTable
   podcasts: PodcastsTable
   savedPodcasts: SavedPodcast
+  episodes: EpisodesTable
   comments: CommentsTable
 }
 
@@ -73,3 +88,6 @@ export type NewSavedPodcast = Insertable<SavedPodcasts>
 
 export type Comment = Selectable<CommentsTable>
 export type NewComment = Insertable<CommentsTable>
+
+export type Episode = Selectable<EpisodesTable>
+export type NewEpisode = Insertable<EpisodesTable>

@@ -17,9 +17,17 @@ export class PodcastCreationDto {
   @IsString()
   name: string;
 
+  @IsOptional()
+  @IsString()
+  coverImageUrl: string;
+
   @IsNotEmpty()
   @IsString()
   description: string;
+
+  @IsOptional()
+  @IsString()
+  rss?: string
 
   @IsArray()
   @IsUrl({}, { each: true })

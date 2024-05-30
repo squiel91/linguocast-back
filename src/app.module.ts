@@ -15,7 +15,7 @@ import { ServeStaticModule } from '@nestjs/serve-static'
     UsersModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'linguocast-front', 'dist'),
-      exclude: ['/api*', '/dynamics/*'],
+      exclude: ['/api', '/dynamics']
     }),
     PodcastsModule,
   ],
