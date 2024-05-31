@@ -26,11 +26,18 @@ export class EpisodesService {
       .execute()
   }
 
-  getEpisodeById(episodeId: number, userId?: number) {
-    return this.episodeBaseQuery(userId)
+  async getEpisodeById(episodeId: number, userId?: number) {
+    const episode = await this.episodeBaseQuery(userId)
       .where('episodes.id', '=', episodeId)
       .executeTakeFirstOrThrow()
-    // TODO return a syntesized podcast
+    return {
+      ...episode,
+      belongsTo: await db
+        .selectFrom('podcasts')
+        .select(['id', 'name', 'coverImage'])
+        .where('id', '=', episode.podcastId)
+        .executeTakeFirstOrThrow()
+    }
   }
 
   async getPodcastEpisodes(podcastId: number, userId?: number) {
@@ -92,6 +99,7 @@ export class EpisodesService {
         )
         .select([
           'id',
+          'podcastId',
           'title',
           'duration',
           'description',
@@ -106,6 +114,7 @@ export class EpisodesService {
         .selectFrom('episodes')
         .select([
           'id',
+          'podcastId',
           'title',
           'duration',
           'description',
