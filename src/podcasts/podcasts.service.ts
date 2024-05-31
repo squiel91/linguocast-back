@@ -1,15 +1,18 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from 'src/db/connection.db'
 import { NewPodcast } from 'src/db/schema.db';
 import { rawMinifiedPodcastsToMinifiedPodcastDtos } from './podcasts.mapper';
 import { CommentsService } from 'src/comments/comments.service';
-import { parseFeed } from 'podcast-partytime';
-import axios from 'axios';
+
 import { parsePodcastRss } from 'src/utils/parsing.utils';
+import { EpisodesService } from 'src/episodes/episodes.service';
 
 @Injectable()
 export class PodcastsService {
-  constructor(private readonly commentsService: CommentsService) {}
+  constructor(
+    private readonly commentsService: CommentsService,
+    private readonly episodesService: EpisodesService
+  ) {}
 
   async getAllPodcasts() {
     const rawPodcasts = await db
@@ -36,12 +39,45 @@ export class PodcastsService {
     return rawMinifiedPodcastsToMinifiedPodcastDtos(rawPodcasts)
   }
 
+  async updatePodcastFromRss(podcastId) {
+    // TODO there should be one option to update the shows info
+    // TODO have an option to update the episodes info
+
+    // Right now it just adds new podcasts
+    const podcastRss = await db
+      .selectFrom('podcasts')
+      .select('rss')
+      .where('id', '=', podcastId)
+      .executeTakeFirst()
+
+    if (!podcastRss) throw new NotFoundException('Podcast not found')
+    const { rss } = podcastRss
+    if (!rss) throw new BadRequestException('The podcast do not have RSS')
+    const { items: remoteEpisodes } = await parsePodcastRss(rss)
+
+    // TODO I assume there is a guid, but is actually not required. Make the comparation more robust (https://www.xn--8ws00zhy3a.com/blog/2006/08/rss-dup-detection)
+    const localEpisodesSourceIds = (
+      await db
+        .selectFrom('episodes')
+        .select('sourceId')
+        .where('podcastId', '=', podcastId)
+        .execute()
+    ).map(({ sourceId }) => sourceId)
+
+    await this.episodesService.createEpisodesFromFeed(
+      remoteEpisodes.filter(
+        ({ guid }) => !localEpisodesSourceIds.includes(guid)
+      ),
+      podcastId
+    )
+  }
+
   async getPodcastById(podcastId: number, requestedByUserId?: number | null) {
     const rawPodcast = await db
       .selectFrom('podcasts')
       .innerJoin('languages', 'podcasts.targetLanguageId', 'languages.id')
       .leftJoin('savedPodcasts', 'podcasts.id', 'savedPodcasts.podcastId')
-      .select(({ fn, val }) => [
+      .select(({ fn }) => [
         'podcasts.id',
         'podcasts.name',
         'podcasts.description',
@@ -64,22 +100,6 @@ export class PodcastsService {
       .where('podcasts.id', '=', podcastId)
       .groupBy('podcasts.id')
       .executeTakeFirst()
-
-    const episodes = await db
-      .selectFrom('episodes')
-      .select([
-        'id',
-        'title',
-        'duration',
-        'description',
-        'episodes.contentUrl',
-        'episodes.image',
-        'publishedAt'
-      ])
-      .where('podcastId', '=', podcastId)
-      .orderBy('id', 'desc')
-      .limit(4)
-      .execute()
 
     const episodesCount = await db
       .selectFrom('episodes')
@@ -126,7 +146,10 @@ export class PodcastsService {
       episodesCount: episodesCount.episodesCount,
       mediumLanguage,
       isSavedByUser,
-      episodes
+      episodes: await this.episodesService.getPodcastEpisodes(
+        podcastId,
+        requestedByUserId
+      )
     }
   }
 
@@ -194,25 +217,10 @@ export class PodcastsService {
 
     if (podcast.rss) {
       const podcastInfo = await parsePodcastRss(podcast.rss)
-      // TODO: complete the rest of metadata
-
-      db.insertInto('episodes')
-        .values(
-          podcastInfo.items
-            .sort((a, b) =>
-              new Date(a.pubDate) > new Date(b.pubDate) ? 1 : -1
-            )
-            .map((episode) => ({
-              podcastId,
-              title: episode.title,
-              image: episode.itunesImage || episode.image || null,
-              duration: episode.duration,
-              description: episode.description,
-              contentUrl: episode.enclosure.url,
-              publishedAt: episode.pubDate.toISOString()
-          }))
-        )
-        .execute()
+      await this.episodesService.createEpisodesFromFeed(
+        podcastInfo.items,
+        podcastId
+      )
     }
 
     return await this.getPodcastById(podcastId)

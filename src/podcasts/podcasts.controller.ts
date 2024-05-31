@@ -138,6 +138,12 @@ export class PodcastsController {
     })
   }
 
+  @Post('/:podcastId/update')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async updatePodcastFromRss(@Param('podcastId') podcastId: number) {
+    this.podcastsService.updatePodcastFromRss(podcastId)
+  }
+
   @Post('/:podcastId/saves')
   @HttpCode(HttpStatus.CREATED)
   async savePodcast(

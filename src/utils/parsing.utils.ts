@@ -15,6 +15,6 @@ export const parsePodcastRss = async (rssUrl: string) => {
     if (!podcastInfo) throw new UnprocessableEntityException()
     return podcastInfo
   } catch (error) {
-    throw new BadRequestException()
+    throw new BadRequestException('Cannot get/parse the RSS Feed.')
   }
 }

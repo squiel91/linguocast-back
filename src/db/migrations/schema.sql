@@ -19,7 +19,7 @@ CREATE TABLE podcasts (
   description TEXT NOT NULL,
   coverImage VARCHAR(256),
   levels JSON,
-  rss VARCHAR(256),
+  rss VARCHAR(512),
   links JSON,
   targetLanguageId INTEGER NOT NULL,
   mediumLanguageId INTEGER,

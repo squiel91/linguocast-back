@@ -7,17 +7,19 @@ import { ConfigModule } from '@nestjs/config'
 import { PodcastsModule } from './podcasts/podcasts.module'
 import { join } from 'path'
 import { ServeStaticModule } from '@nestjs/serve-static'
+import { EpisodesModule } from './episodes/episodes.module'
 
 @Module({
   imports: [
     ConfigModule.forRoot(),
     LanguagesModule,
     UsersModule,
+    EpisodesModule,
+    PodcastsModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'linguocast-front', 'dist'),
       exclude: ['/api', '/dynamics']
-    }),
-    PodcastsModule,
+    })
   ],
   controllers: [AppController],
   providers: [AppService],

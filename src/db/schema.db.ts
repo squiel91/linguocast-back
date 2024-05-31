@@ -54,6 +54,7 @@ interface CommentsTable {
 
 interface EpisodesTable {
   id: Generated<number>
+  sourceId: string
   podcastId: number
   title: string
   image?: string
@@ -65,6 +66,14 @@ interface EpisodesTable {
   updatedAt: ColumnType<string, string | undefined, never>
 }
 
+interface ReproductionsTable {
+  episodeId: number
+  userId: number
+  leftOn: number
+  completedAt: string
+  updatedAt: ColumnType<string, string | undefined, never>
+}
+
 export interface Database {
   languages: LanguagesTable
   users: UsersTable
@@ -72,6 +81,7 @@ export interface Database {
   savedPodcasts: SavedPodcast
   episodes: EpisodesTable
   comments: CommentsTable
+  reproductions: ReproductionsTable
 }
 
 export type Language = Selectable<LanguagesTable>
@@ -91,3 +101,6 @@ export type NewComment = Insertable<CommentsTable>
 
 export type Episode = Selectable<EpisodesTable>
 export type NewEpisode = Insertable<EpisodesTable>
+
+export type Reproduction = Selectable<ReproductionsTable>
+export type NewReproduction = Insertable<ReproductionsTable>
