@@ -93,32 +93,12 @@ export class PodcastsController {
   ) {
     let coverImageName: string | null = null
     if (createPodcastDto.coverImageUrl) {
-      // const mimeToExt = {
-      //   'image/jpeg': 'jpg',
-      //   'image/jpg': 'jpg',
-      //   'image/png': 'png',
-      //   'image/gif': 'gif',
-      //   'image/svg+xml': 'svg',
-      //   'image/webp': 'webp'
-      // }
+      const url = new URL(createPodcastDto.coverImageUrl)
+      const pathname = url.pathname
+      const lastUrlPart = pathname.split('/')
+      const extension = extname(lastUrlPart[lastUrlPart.length - 1])
+      coverImageName = `${Date.now()}${extension}`
 
-      // const response = await axios.get(createPodcastDto.coverImageUrl, {
-      //   responseType: 'blob'
-      // })
-
-      // const contentType = response.headers['content-type']
-
-      // const extension = mimeToExt[contentType] || 'bin' // Default to 'bin' if not found
-
-      const hell = createPodcastDto.coverImageUrl.split('/')
-      const extension = extname(hell[hell.length - 1])
-      coverImageName = `${Date.now()}.${extension}`
-
-      // const file = new File([response.data], fileName, {
-      //   type: response.data.type
-      // })
-
-      // Define the directory and file path
       const publicDir = join(
         __dirname,
         '..',

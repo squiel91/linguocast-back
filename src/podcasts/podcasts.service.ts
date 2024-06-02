@@ -22,7 +22,7 @@ export class PodcastsService {
 
   private readonly logger = new Logger(PodcastsService.name)
 
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_WEEK)
   async updateAllPodcasts() {
     const podcastIdsWithRssFeed = (
       await db
