@@ -33,6 +33,8 @@ interface PodcastsTable {
   hasTranscript: number | null
   isTranscriptFree: number | null
   uploadedByUserId: number
+  lastModified?: string // for rss refresh catching
+  eTag?: string // for rss refresh catching
   createdAt: ColumnType<string, string | undefined, never>
   updatedAt: ColumnType<string, string | undefined, never>
 }

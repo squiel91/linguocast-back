@@ -40,11 +40,20 @@ export class EpisodesService {
     }
   }
 
-  async getPodcastEpisodes(podcastId: number, userId?: number) {
-    return await this.episodeBaseQuery(userId)
+  async getPodcastEpisodes(
+    podcastId: number,
+    userId?: number,
+    fromEpisodeId?: number,
+    size = 5
+  ) {
+    return await (
+      fromEpisodeId
+        ? this.episodeBaseQuery(userId).where('episodes.id', '<', fromEpisodeId)
+        : this.episodeBaseQuery(userId)
+    )
       .where('podcastId', '=', podcastId)
       .orderBy('id', 'desc')
-      .limit(5)
+      .limit(size)
       .execute()
   }
 

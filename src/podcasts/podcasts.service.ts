@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException
+} from '@nestjs/common'
 import { db } from 'src/db/connection.db'
 import { NewPodcast } from 'src/db/schema.db';
 import { rawMinifiedPodcastsToMinifiedPodcastDtos } from './podcasts.mapper';
@@ -6,6 +11,7 @@ import { CommentsService } from 'src/comments/comments.service';
 
 import { parsePodcastRss } from 'src/utils/parsing.utils';
 import { EpisodesService } from 'src/episodes/episodes.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 @Injectable()
 export class PodcastsService {
@@ -14,6 +20,23 @@ export class PodcastsService {
     private readonly episodesService: EpisodesService
   ) {}
 
+  private readonly logger = new Logger(PodcastsService.name)
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async updateAllPodcasts() {
+    const podcastIdsWithRssFeed = (
+      await db
+        .selectFrom('podcasts')
+        .select(['id'])
+        .where('rss', 'is not', null)
+        .execute()
+    ).map(({ id }) => id)
+
+    console.log(`Updating all podcasts`, podcastIdsWithRssFeed)
+    for (const podcastId of podcastIdsWithRssFeed) {
+      await this.updatePodcastFromRss(podcastId)
+    }
+  }
   async getAllPodcasts() {
     const rawPodcasts = await db
       .selectFrom('podcasts')
@@ -39,21 +62,34 @@ export class PodcastsService {
     return rawMinifiedPodcastsToMinifiedPodcastDtos(rawPodcasts)
   }
 
-  async updatePodcastFromRss(podcastId) {
+  async updatePodcastFromRss(podcastId: number) {
     // TODO there should be one option to update the shows info
     // TODO have an option to update the episodes info
 
     // Right now it just adds new podcasts
-    const podcastRss = await db
+    const podcastData = await db
       .selectFrom('podcasts')
-      .select('rss')
+      .select(['rss', 'eTag', 'lastModified'])
       .where('id', '=', podcastId)
       .executeTakeFirst()
 
-    if (!podcastRss) throw new NotFoundException('Podcast not found')
-    const { rss } = podcastRss
+    if (!podcastData) throw new NotFoundException('Podcast not found')
+    const { rss, eTag, lastModified } = podcastData
+
     if (!rss) throw new BadRequestException('The podcast do not have RSS')
-    const { items: remoteEpisodes } = await parsePodcastRss(rss)
+
+    const { isUpToDate, ...rest } = await parsePodcastRss(rss, {
+      lastModified,
+      eTag
+    })
+
+    if (isUpToDate) return
+
+    const {
+      podcast: { items: remoteEpisodes },
+      eTag: updatedETag,
+      lastModified: updatedLastModified
+    } = rest
 
     // TODO I assume there is a guid, but is actually not required. Make the comparation more robust (https://www.xn--8ws00zhy3a.com/blog/2006/08/rss-dup-detection)
     const localEpisodesSourceIds = (
@@ -64,12 +100,24 @@ export class PodcastsService {
         .execute()
     ).map(({ sourceId }) => sourceId)
 
+
     await this.episodesService.createEpisodesFromFeed(
       remoteEpisodes.filter(
         ({ guid }) => !localEpisodesSourceIds.includes(guid)
       ),
       podcastId
     )
+
+    // save the updated last modified and/or etag
+    if (!updatedLastModified && !updatedETag) return
+    await db
+      .updateTable('podcasts')
+      .set({
+        lastModified: updatedLastModified,
+        eTag: updatedETag
+      })
+      .where('id', '=', podcastId)
+      .execute()
   }
 
   async getPodcastById(podcastId: number, requestedByUserId?: number | null) {
@@ -145,17 +193,37 @@ export class PodcastsService {
       levels: JSON.parse(rawLevels),
       episodesCount: episodesCount.episodesCount,
       mediumLanguage,
-      isSavedByUser,
-      episodes: await this.episodesService.getPodcastEpisodes(
-        podcastId,
-        requestedByUserId
-      )
+      isSavedByUser
     }
+  }
+
+  async getPodcastEpisodes(
+    podcastId: number,
+    userId: number | null,
+    fromEpisodeId?: number,
+    size: number = 5
+  ) {
+    const episodes = await this.episodesService.getPodcastEpisodes(
+      podcastId,
+      userId,
+      fromEpisodeId,
+      size
+    )
+    const microPodcast = await db
+      .selectFrom('podcasts')
+      .select(['id', 'name', 'coverImage'])
+      .where('id', '=', podcastId)
+      .executeTakeFirstOrThrow()
+
+    return episodes.map(episode => ({
+      ...episode,
+      belongsTo: microPodcast
+    }))
   }
 
   async rssAutocomplete(rssUrl: string) {
     try {
-      const podcastData = await parsePodcastRss(rssUrl)
+      const { podcast: podcastData } = await parsePodcastRss(rssUrl)
       return {
         name: podcastData.title || null,
         description: podcastData.description || null,
@@ -178,7 +246,7 @@ export class PodcastsService {
       links: string[]
       targetLanguage: string
       mediumLanguage: string | null
-    },
+    }
   ) {
     const { levels, links, targetLanguage, mediumLanguage, ...rest } = podcast
 
@@ -201,6 +269,14 @@ export class PodcastsService {
       ).id
     }
 
+    const {
+      podcast: remotePodcast,
+      eTag,
+      lastModified
+    } = (await podcast.rss)
+      ? await parsePodcastRss(podcast.rss)
+      : { podcast: null, eTag: null, lastModified: null }
+
     const podcastId = (
       await db
         .insertInto('podcasts')
@@ -209,16 +285,17 @@ export class PodcastsService {
           levels: JSON.stringify(levels),
           links: JSON.stringify(links),
           targetLanguageId,
-          mediumLanguageId
+          mediumLanguageId,
+          eTag,
+          lastModified
         })
         .returning('id')
         .executeTakeFirstOrThrow()
     ).id
 
-    if (podcast.rss) {
-      const podcastInfo = await parsePodcastRss(podcast.rss)
+    if (remotePodcast) {
       await this.episodesService.createEpisodesFromFeed(
-        podcastInfo.items,
+        remotePodcast.items,
         podcastId
       )
     }

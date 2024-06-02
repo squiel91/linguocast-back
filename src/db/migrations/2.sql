@@ -1,0 +1,2 @@
+ALTER TABLE podcasts ADD COLUMN lastModified VARCHAR(128);
+ALTER TABLE podcasts ADD COLUMN eTag VARCHAR(512);

@@ -11,7 +11,8 @@ import {
   Param,
   HttpCode,
   Delete,
-  UnauthorizedException
+  UnauthorizedException,
+  Query
 } from '@nestjs/common'
 import { PodcastsService } from './podcasts.service'
 
@@ -40,11 +41,26 @@ export class PodcastsController {
   }
 
   @Get('/:podcastId')
-  async getPodcastById(
+  async getPodcast(
     @Param('podcastId') podcastId: number,
     @UserIdOr(() => null) userId: number | null
   ) {
     return await this.podcastsService.getPodcastById(podcastId, userId)
+  }
+
+  @Get('/:podcastId/episodes')
+  async getPodcastEpisodes(
+    @UserIdOr(() => null) userId: number | null,
+    @Param('podcastId') podcastId: number,
+    @Query('from') fromEpisodeId?: number,
+    @Query('size') size?: number
+  ) {
+    return await this.podcastsService.getPodcastEpisodes(
+      podcastId,
+      userId,
+      fromEpisodeId,
+      size
+    )
   }
 
   @Post('/')
@@ -141,7 +157,7 @@ export class PodcastsController {
   @Post('/:podcastId/update')
   @HttpCode(HttpStatus.ACCEPTED)
   async updatePodcastFromRss(@Param('podcastId') podcastId: number) {
-    this.podcastsService.updatePodcastFromRss(podcastId)
+    await this.podcastsService.updatePodcastFromRss(podcastId)
   }
 
   @Post('/:podcastId/saves')
