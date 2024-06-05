@@ -1,5 +1,6 @@
-import * as fs from 'fs'
 import axios from 'axios'
+import { createWriteStream, writeFile } from 'fs'
+import { join } from 'path'
 
 export const saveImageFromUrl = async (
   imageUrl: string,
@@ -7,7 +8,7 @@ export const saveImageFromUrl = async (
 ): Promise<void> => {
   try {
     const response = await axios.get(imageUrl, { responseType: 'stream' })
-    const writer = fs.createWriteStream(filePath)
+    const writer = createWriteStream(filePath)
 
     response.data.pipe(writer)
 
@@ -19,4 +20,21 @@ export const saveImageFromUrl = async (
     console.error('Error saving image:', error)
     throw error
   }
+}
+
+export const saveFile = async (filePath: string, data: unknown) => {
+  return new Promise((resolve, reject) => {
+    writeFile(
+      join(__dirname, filePath),
+      JSON.stringify(data, null, 2),
+      (err) => {
+        if (err) {
+          reject(`Error writing file: ${filePath}`)
+          console.error('Error writing file:', err)
+        } else {
+          resolve(`JSON data has been saved to ${filePath}`)
+        }
+      }
+    )
+  })
 }

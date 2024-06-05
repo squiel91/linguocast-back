@@ -13,6 +13,7 @@ export class CommentsService {
         'comments.createdAt',
         'comments.updatedAt',
         'users.id as authorId',
+        'users.avatar as authorAvatar',
         'users.name as authorName'
       ])
   }

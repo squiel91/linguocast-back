@@ -1,0 +1,20 @@
+
+
+CREATE TABLE episodePipeline (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  episodeId INTEGER NOT NULL,
+  stage VARCHAR(64) NOT NULL,
+  result JSON,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (episodeId) REFERENCES episodes(id)
+);
+
+ALTER TABLE users ADD COLUMN isProfilePrivate BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN isPremium BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN level VARCHAR(32);
+ALTER TABLE users ADD COLUMN avatar TEXT;
+ALTER TABLE users ADD COLUMN canOthersContact BOOLEAN NOT NULL DEFAULT TRUE;
+
+ALTER TABLE users ADD COLUMN learningLanguageId INTEGER; -- # It should be not null, but add it in the future
+-- ALTER TABLE users ADD FOREIGN KEY (learningLanguageId) REFERENCES languages(id);
+

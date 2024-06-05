@@ -3,7 +3,7 @@ import { AppModule } from './app.module'
 import { ValidationPipe } from '@nestjs/common'
 import * as cookieParser from 'cookie-parser'
 import { join } from 'path'
-import { static as staticMiddleware} from 'express'
+import { static as staticMiddleware } from 'express'
 
 const bootstrap = async () => {
   const app = await NestFactory.create(AppModule)
@@ -14,7 +14,7 @@ const bootstrap = async () => {
       transform: true
     })
   )
-  app.use(cookieParser());
+  app.use(cookieParser())
 
   app.use(
     '/dynamics',

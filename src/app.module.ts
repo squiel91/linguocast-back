@@ -8,6 +8,8 @@ import { PodcastsModule } from './podcasts/podcasts.module'
 import { join } from 'path'
 import { ServeStaticModule } from '@nestjs/serve-static'
 import { EpisodesModule } from './episodes/episodes.module'
+import { TranscriptionsModule } from './transcriptions/transcriptions.module'
+import { UserModule } from './user/user.module'
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { EpisodesModule } from './episodes/episodes.module'
     UsersModule,
     EpisodesModule,
     PodcastsModule,
+    TranscriptionsModule,
+    UserModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'linguocast-front', 'dist'),
       exclude: ['/api', '/dynamics']

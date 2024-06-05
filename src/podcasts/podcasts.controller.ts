@@ -22,9 +22,12 @@ import { PodcastCreationDto } from './podcasts.validation'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { diskStorage } from 'multer'
 import { extname, join } from 'path'
-import { UserIdOr } from 'src/auth/auth.decorators'
 import { CommentCreationDto } from 'src/comments/comments.validation'
 import { saveImageFromUrl } from 'src/utils/file.utils'
+import {
+  UserIdOrNull,
+  UserIdOrThrowUnauthorized
+} from 'src/auth/auth.decorators'
 
 @Controller('/api/podcasts')
 export class PodcastsController {
@@ -43,14 +46,14 @@ export class PodcastsController {
   @Get('/:podcastId')
   async getPodcast(
     @Param('podcastId') podcastId: number,
-    @UserIdOr(() => null) userId: number | null
+    @UserIdOrNull() userId: number | null
   ) {
     return await this.podcastsService.getPodcastById(podcastId, userId)
   }
 
   @Get('/:podcastId/episodes')
   async getPodcastEpisodes(
-    @UserIdOr(() => null) userId: number | null,
+    @UserIdOrNull() userId: number | null,
     @Param('podcastId') podcastId: number,
     @Query('from') fromEpisodeId?: number,
     @Query('size') size?: number
@@ -75,10 +78,7 @@ export class PodcastsController {
     })
   )
   async createPodcast(
-    @UserIdOr(() => {
-      throw new UnauthorizedException()
-    })
-    userId: number,
+    @UserIdOrThrowUnauthorized() userId: number,
     @Body() createPodcastDto: PodcastCreationDto,
     @UploadedFile(
       new ParseFilePipeBuilder()
@@ -143,10 +143,7 @@ export class PodcastsController {
   @Post('/:podcastId/saves')
   @HttpCode(HttpStatus.CREATED)
   async savePodcast(
-    @UserIdOr(() => {
-      throw new UnauthorizedException()
-    })
-    userId: number,
+    @UserIdOrThrowUnauthorized() userId: number,
     @Param('podcastId') podcastId: number
   ) {
     await this.podcastsService.savePodcast(userId, podcastId)
@@ -155,10 +152,7 @@ export class PodcastsController {
   @Delete('/:podcastId/saves')
   @HttpCode(HttpStatus.CREATED)
   async removeSavedPodcast(
-    @UserIdOr(() => {
-      throw new UnauthorizedException()
-    })
-    userId: number,
+    @UserIdOrThrowUnauthorized() userId: number,
     @Param('podcastId') podcastId: number
   ) {
     await this.podcastsService.removeSavedPodcast(userId, podcastId)
@@ -171,10 +165,7 @@ export class PodcastsController {
 
   @Post('/:podcastId/comments')
   async createComment(
-    @UserIdOr(() => {
-      throw new UnauthorizedException()
-    })
-    userId: number,
+    @UserIdOrThrowUnauthorized() userId: number,
     @Param('podcastId') podcastId: number,
     @Body() commentCreationDto: CommentCreationDto
   ) {

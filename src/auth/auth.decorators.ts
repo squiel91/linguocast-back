@@ -11,16 +11,30 @@ const extractTokenFromHeader = (request: Request): string | undefined => {
   return type === 'Bearer' ? token : null
 }
 
-export const UserIdOr = createParamDecorator(
-  (orFn: () => unknown, context: ExecutionContext) => {
+export const UserIdOrNull = createParamDecorator(
+  (_, context: ExecutionContext) => {
     const request = context.switchToHttp().getRequest()
     const token = extractTokenFromHeader(request)
-    if (!token) orFn()
+    if (!token) return null
     try {
       const { id } = verify(token, process.env.JWT_SECRET) as { id: number }
       return id
     } catch {
-      orFn()
+      return null
+    }
+  }
+)
+
+export const UserIdOrThrowUnauthorized = createParamDecorator(
+  (_, context: ExecutionContext) => {
+    const request = context.switchToHttp().getRequest()
+    const token = extractTokenFromHeader(request)
+    if (!token) return new UnauthorizedException()
+    try {
+      const { id } = verify(token, process.env.JWT_SECRET) as { id: number }
+      return id
+    } catch {
+      return new UnauthorizedException()
     }
   }
 )

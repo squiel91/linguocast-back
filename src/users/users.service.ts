@@ -1,61 +1,85 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common'
 import { db } from 'src/db/connection.db'
-import { hash, compare } from 'bcrypt'
-import { sign, verify } from 'jsonwebtoken'
-
-const generateAuthToken = (userId: number) =>
-  sign({ id: userId }, process.env.JWT_SECRET);
-
-const decodeAuthToken = (token: string) => {
-  try {
-    return verify(token, process.env.JWT_SECRET) as { id: number };
-  } catch (error) {
-    return null
-  }
-}
+import { hash } from 'bcrypt'
+import { generateAuthToken } from 'src/utils/auth.utils'
+import UserService from 'src/user/user.service'
 
 @Injectable()
 export class UsersService {
-  async createUser(email: string, name: string, password: string) {
-    // TODO: validate email is not already in the database
+  constructor(private readonly userService: UserService) {}
+
+  async viewUser(userId: number) {
+    const userInfo = await db
+      .selectFrom('users')
+      .leftJoin('languages', 'users.learningLanguageId', 'languages.id')
+      .select([
+        'users.id',
+        'users.name',
+        'users.avatar',
+        'users.createdAt',
+        'isProfilePrivate',
+        'canOthersContact',
+        'languages.name as learning',
+        'level'
+      ])
+      .where('users.id', '=', userId)
+      .executeTakeFirstOrThrow()
+
+    if (userInfo.isProfilePrivate) {
+      return {
+        id: userInfo.id,
+        name: userInfo.name,
+        avatar: userInfo.avatar,
+        isProfilePrivate: userInfo.isProfilePrivate,
+      }
+    }
+    return userInfo
+  }
+  async createUser(
+    rawEmail: string,
+    name: string,
+    learning: string,
+    password: string
+  ) {
+    const email = rawEmail.trim().toLowerCase()
+
+    const checkAlreadyExistingEmail = await db
+      .selectFrom('users')
+      .select('id')
+      .where('email', '=', email)
+      .executeTakeFirst()
+
+    if (checkAlreadyExistingEmail) {
+      throw new ConflictException('Email already in use.')
+    }
+
+    const languageId = (
+      await db
+        .selectFrom('languages')
+        .select('id')
+        .where('name', '=', learning)
+        .executeTakeFirstOrThrow()
+    ).id
 
     const saltOrRounds = 10
     const paswordHash = await hash(password, saltOrRounds)
 
+
     const userId = (
       await db
         .insertInto('users')
-        .values({ email, name, password: paswordHash })
+        .values({
+          email,
+          name,
+          learningLanguageId: languageId,
+          password: paswordHash
+        })
         .returning('id')
         .executeTakeFirstOrThrow()
     ).id
     return {
-      user: await this.getUserProfile(userId),
+      user: await this.userService.viewUser(userId),
       token: generateAuthToken(userId)
-    }
-  }
-
-  async getUserProfile(userId: number) {
-    return await db
-      .selectFrom('users')
-      .select(['id', 'name'])
-      .where('id', '=', userId)
-      .executeTakeFirstOrThrow()
-  }
-
-  async authenticateUser(email: string, password: string) {
-    const user = await db
-      .selectFrom('users')
-      .select(['id', 'password'])
-      .where('email', '=', email)
-      .executeTakeFirst();
-    const isMatch = await compare(password, user.password);
-
-    if (!isMatch) throw new UnauthorizedException();
-
-    return {
-      user: await this.getUserProfile(user.id),
-      token: generateAuthToken(user.id)
     }
   }
 }

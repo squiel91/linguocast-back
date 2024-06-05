@@ -10,13 +10,7 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @IsString()
-  @MinLength(6)
-  password: string;
-}
-
-export class AuthenticateUserDto {
-  @IsEmail()
-  email: string;
+  learning: string;
 
   @IsNotEmpty()
   @IsString()

@@ -8,8 +8,14 @@ interface LanguagesTable {
 
 interface UsersTable {
   id: Generated<number>
+  avatar: string
   email: string
   name: string
+  isProfilePrivate: number
+  canOthersContact: number
+  learningLanguageId: number
+  level?: string
+  isPremium: number
   password: string
   createdAt: ColumnType<string, string | undefined, never>
   updatedAt: ColumnType<string, string | undefined, never>
@@ -20,7 +26,7 @@ interface PodcastsTable {
   name: string
   description: string
   coverImage: string | null
-  rss: string | null 
+  rss: string | null
   links: string | null
   levels: string
   targetLanguageId: number
@@ -39,7 +45,7 @@ interface PodcastsTable {
   updatedAt: ColumnType<string, string | undefined, never>
 }
 
-interface SavedPodcasts {
+interface SavedPodcastsTable {
   userId: number
   podcastId: number
   createdAt: ColumnType<string, string | undefined, never>
@@ -76,14 +82,23 @@ interface ReproductionsTable {
   updatedAt: ColumnType<string, string | undefined, never>
 }
 
+interface EpisodePipelineTable {
+  id: Generated<number>
+  episodeId: number
+  stage: string
+  result: string
+  createdAt: ColumnType<string, string | undefined, never>
+}
+
 export interface Database {
   languages: LanguagesTable
   users: UsersTable
   podcasts: PodcastsTable
-  savedPodcasts: SavedPodcast
+  savedPodcasts: SavedPodcastsTable
   episodes: EpisodesTable
   comments: CommentsTable
   reproductions: ReproductionsTable
+  episodePipeline: EpisodePipelineTable
 }
 
 export type Language = Selectable<LanguagesTable>
@@ -95,8 +110,8 @@ export type NewUser = Insertable<UsersTable>
 export type Podcast = Selectable<PodcastsTable>
 export type NewPodcast = Insertable<PodcastsTable>
 
-export type SavedPodcast = Selectable<SavedPodcasts>
-export type NewSavedPodcast = Insertable<SavedPodcasts>
+export type SavedPodcast = Selectable<SavedPodcastsTable>
+export type NewSavedPodcast = Insertable<SavedPodcastsTable>
 
 export type Comment = Selectable<CommentsTable>
 export type NewComment = Insertable<CommentsTable>
