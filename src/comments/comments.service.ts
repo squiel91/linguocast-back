@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { db } from 'src/db/connection.db';
 
+export type ResourceType = 'podcasts' | 'episodes'
+
 @Injectable()
 export class CommentsService {
   private baseCommentQuery() {
@@ -9,9 +11,10 @@ export class CommentsService {
       .innerJoin('users', 'comments.userId', 'users.id')
       .select([
         'comments.id',
-        'comment as message',
+        'content',
         'comments.createdAt',
         'comments.updatedAt',
+        'responseTo',
         'users.id as authorId',
         'users.avatar as authorAvatar',
         'users.name as authorName'
@@ -24,19 +27,26 @@ export class CommentsService {
       .executeTakeFirstOrThrow()
   }
 
-  async getCommentsForPodcast(podcastId: number) {
+  async listCommentForResource(resourceType: ResourceType, resourceId: number) {
     return await this.baseCommentQuery()
-      .where('comments.podcastId', '=', podcastId)
+      .where('comments.resourceType', '=', resourceType)
+      .where('comments.resourceId', '=', resourceId)
       .execute()
   }
 
-  async createComment(podcastId: number, userId: number, message: string) {
+  async createComment(
+    userId: number,
+    resourceType: ResourceType,
+    resourceId: number,
+    content: string
+  ) {
     const { id: commentId } = await db
       .insertInto('comments')
       .values({
-        podcastId,
+        resourceType,
+        resourceId,
         userId,
-        comment: message // TODO: change column name to message
+        content
       })
       .returning('id')
       .executeTakeFirstOrThrow()

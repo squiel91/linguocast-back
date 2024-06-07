@@ -53,9 +53,11 @@ interface SavedPodcastsTable {
 
 interface CommentsTable {
   id: Generated<number>
-  podcastId: number
   userId: number
-  comment: string
+  resourceType: string
+  resourceId: number
+  content: string
+  responseTo?: number
   createdAt: ColumnType<string, string | undefined, never>
   updatedAt: ColumnType<string, string | undefined, never>
 }

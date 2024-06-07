@@ -1,4 +1,4 @@
-import { RawMinifiedPodcast } from './podcasts.type';
+import { RawMinifiedPodcast } from './podcasts.type'
 
 export const rawMinifiedPodcastToMinifiedPodcastDto = (
   rawMinifiedPodcast: RawMinifiedPodcast,
@@ -13,6 +13,6 @@ export const rawMinifiedPodcastToMinifiedPodcastDto = (
 export const rawMinifiedPodcastsToMinifiedPodcastDtos = (
   rawMinifiedPodcasts: RawMinifiedPodcast[]
 ) =>
-  rawMinifiedPodcasts.map((rawMinifiedPodcast) =>
-    rawMinifiedPodcastToMinifiedPodcastDto(rawMinifiedPodcast),
-  );
+  rawMinifiedPodcasts.map(rawMinifiedPodcast =>
+    rawMinifiedPodcastToMinifiedPodcastDto(rawMinifiedPodcast)
+  )

@@ -52,7 +52,7 @@ export class EpisodesService {
         : this.episodeBaseQuery(userId)
     )
       .where('podcastId', '=', podcastId)
-      .orderBy('id', 'desc')
+      .orderBy('episodes.id', 'desc')
       .limit(size)
       .execute()
   }
@@ -107,7 +107,7 @@ export class EpisodesService {
           'episodes.id'
         )
         .select([
-          'id',
+          'episodes.id',
           'podcastId',
           'title',
           'duration',
@@ -115,6 +115,9 @@ export class EpisodesService {
           'episodes.contentUrl',
           'episodes.image',
           'publishedAt',
+          sql<number>`(SELECT COUNT(*) FROM comments WHERE resourceType = 'episodes' AND resourceId = episodes.id)`.as(
+            'commentsCount'
+          ),
           'userReproductions.leftOn',
           'userReproductions.completedAt'
         ])
@@ -122,14 +125,17 @@ export class EpisodesService {
       return db
         .selectFrom('episodes')
         .select([
-          'id',
+          'episodes.id',
           'podcastId',
           'title',
           'duration',
           'description',
           'episodes.contentUrl',
           'episodes.image',
-          'publishedAt'
+          'publishedAt',
+          sql<number>`(SELECT COUNT(*) FROM comments WHERE resourceType = 'episodes' AND resourceId = episodes.id)`.as(
+            'commentsCount'
+          )
         ])
     }
   }

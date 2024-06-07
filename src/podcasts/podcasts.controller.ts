@@ -11,7 +11,6 @@ import {
   Param,
   HttpCode,
   Delete,
-  UnauthorizedException,
   Query
 } from '@nestjs/common'
 import { PodcastsService } from './podcasts.service'
@@ -22,7 +21,6 @@ import { PodcastCreationDto } from './podcasts.validation'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { diskStorage } from 'multer'
 import { extname, join } from 'path'
-import { CommentCreationDto } from 'src/comments/comments.validation'
 import { saveImageFromUrl } from 'src/utils/file.utils'
 import {
   UserIdOrNull,
@@ -157,24 +155,4 @@ export class PodcastsController {
   ) {
     await this.podcastsService.removeSavedPodcast(userId, podcastId)
   }
-
-  @Get('/:podcastId/comments')
-  async listComments(@Param('podcastId') podcastId: number) {
-    return await this.podcastsService.getCommentsForPodcast(podcastId)
-  }
-
-  @Post('/:podcastId/comments')
-  async createComment(
-    @UserIdOrThrowUnauthorized() userId: number,
-    @Param('podcastId') podcastId: number,
-    @Body() commentCreationDto: CommentCreationDto
-  ) {
-    return await this.podcastsService.createComment(
-      podcastId,
-      userId,
-      commentCreationDto.message
-    )
-  }
-
-  // TODO add comment remove and edit
 }

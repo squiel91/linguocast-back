@@ -10,6 +10,7 @@ import { ServeStaticModule } from '@nestjs/serve-static'
 import { EpisodesModule } from './episodes/episodes.module'
 import { TranscriptionsModule } from './transcriptions/transcriptions.module'
 import { UserModule } from './user/user.module'
+import { CommentsModule } from './comments/comments.module'
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { UserModule } from './user/user.module'
     EpisodesModule,
     PodcastsModule,
     TranscriptionsModule,
+    CommentsModule,
     UserModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'linguocast-front', 'dist'),

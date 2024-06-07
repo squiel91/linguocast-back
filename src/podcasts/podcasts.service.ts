@@ -5,20 +5,16 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { db } from 'src/db/connection.db'
-import { NewPodcast } from 'src/db/schema.db';
-import { rawMinifiedPodcastsToMinifiedPodcastDtos } from './podcasts.mapper';
-import { CommentsService } from 'src/comments/comments.service';
+import { NewPodcast } from 'src/db/schema.db'
+import { rawMinifiedPodcastsToMinifiedPodcastDtos } from './podcasts.mapper'
 
-import { parsePodcastRss } from 'src/utils/parsing.utils';
-import { EpisodesService } from 'src/episodes/episodes.service';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { parsePodcastRss } from 'src/utils/parsing.utils'
+import { EpisodesService } from 'src/episodes/episodes.service'
+import { Cron, CronExpression } from '@nestjs/schedule'
 
 @Injectable()
 export class PodcastsService {
-  constructor(
-    private readonly commentsService: CommentsService,
-    private readonly episodesService: EpisodesService
-  ) {}
+  constructor(private readonly episodesService: EpisodesService) {}
 
   private readonly logger = new Logger(PodcastsService.name)
 
@@ -42,8 +38,16 @@ export class PodcastsService {
       .selectFrom('podcasts')
       .innerJoin('languages', 'podcasts.targetLanguageId', 'languages.id')
       .leftJoin('savedPodcasts', 'podcasts.id', 'savedPodcasts.podcastId')
-      .leftJoin('comments', 'podcasts.id', 'comments.podcastId')
-      .select(({ fn, val }) => [
+      .leftJoin(
+        db
+          .selectFrom('comments')
+          .select(['id', 'resourceType', 'resourceId'])
+          .where('comments.resourceType', '=', 'podcasts')
+          .as('givenPodcastComments'),
+        'podcasts.id',
+        'givenPodcastComments.resourceId'
+      )
+      .select(({ fn, val, eb }) => [
         'podcasts.id',
         'podcasts.name',
         fn<string>('SUBSTR', ['description', val(0), val(150)]).as(
@@ -52,8 +56,12 @@ export class PodcastsService {
         'coverImage',
         'levels as rawLevels',
         'languages.name as targetLanguage',
-        fn<number>('COUNT', ['savedPodcasts.podcastId']).as('savedCount'),
-        fn<number>('COUNT', ['comments.podcastId']).as('commentsCount')
+        fn<number>('COUNT', [fn('DISTINCT', ['savedPodcasts.userId'])]).as(
+          'savedCount'
+        ),
+        fn<number>('COUNT', [fn('DISTINCT', ['givenPodcastComments.id'])]).as(
+          'commentsCount'
+        )
       ])
       .groupBy('podcasts.id')
       .orderBy('podcasts.id', 'desc')
@@ -100,7 +108,6 @@ export class PodcastsService {
         .execute()
     ).map(({ sourceId }) => sourceId)
 
-
     await this.episodesService.createEpisodesFromFeed(
       remoteEpisodes.filter(
         ({ guid }) => !localEpisodesSourceIds.includes(guid)
@@ -125,6 +132,16 @@ export class PodcastsService {
       .selectFrom('podcasts')
       .innerJoin('languages', 'podcasts.targetLanguageId', 'languages.id')
       .leftJoin('savedPodcasts', 'podcasts.id', 'savedPodcasts.podcastId')
+      .leftJoin(
+        db
+          .selectFrom('comments')
+          .select(['id', 'resourceType', 'resourceId'])
+          .where('comments.resourceType', '=', 'podcasts')
+          .where('comments.resourceId', '=', podcastId)
+          .as('givenPodcastComments'),
+        'podcasts.id',
+        'givenPodcastComments.resourceId'
+      )
       .select(({ fn }) => [
         'podcasts.id',
         'podcasts.name',
@@ -141,7 +158,12 @@ export class PodcastsService {
         'hasTranscript',
         'isTranscriptFree',
         'uploadedByUserId',
-        fn<number>('COUNT', ['savedPodcasts.podcastId']).as('savedCount'),
+        fn<number>('COUNT', [fn('DISTINCT', ['savedPodcasts.userId'])]).as(
+          'savedCount'
+        ),
+        fn<number>('COUNT', [fn('DISTINCT', ['givenPodcastComments.id'])]).as(
+          'commentsCount'
+        ),
         'podcasts.createdAt',
         'podcasts.updatedAt'
       ])
@@ -323,13 +345,5 @@ export class PodcastsService {
       .where('userId', '=', userId)
       .where('podcastId', '=', podcastId)
       .execute()
-  }
-
-  async getCommentsForPodcast(podcastId: number) {
-    return await this.commentsService.getCommentsForPodcast(podcastId)
-  }
-
-  async createComment(podcastId: number, userId: number, message: string) {
-    return await this.commentsService.createComment(podcastId, userId, message)
   }
 }
