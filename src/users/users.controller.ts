@@ -1,4 +1,12 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post
+} from '@nestjs/common'
 import { UsersService } from './users.service'
 import { CreateUserDto } from './users.validation'
 
@@ -6,9 +14,9 @@ import { createParamDecorator, ExecutionContext } from '@nestjs/common'
 
 export const Cookies = createParamDecorator(
   (data: string, ctx: ExecutionContext) => {
-    const request = ctx.switchToHttp().getRequest();
-    return data ? request.cookies?.[data] : request.cookies;
-});
+    const request = ctx.switchToHttp().getRequest()
+    return data ? request.cookies?.[data] : request.cookies
+})
 
 @Controller('/api/users')
 export class UsersController {

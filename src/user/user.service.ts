@@ -4,6 +4,7 @@ import {
   UnauthorizedException
 } from '@nestjs/common'
 import { compare } from 'bcrypt'
+import { episode } from 'podcast-partytime/dist/parser/phase/phase-2'
 import { db } from 'src/db/connection.db'
 import { generateAuthToken } from 'src/utils/auth.utils'
 
@@ -90,6 +91,7 @@ export default class UserService {
       newEpisodes: await this.listSubscribedButNotListenedEpisodes(userId),
       subscribedPodcasts: await this.listUserPodcastSubscriptions(userId),
       listeningEpisodes: await this.listListenedButNotCompletedEpisodes(userId),
+      latestEpisodeComments: await this.listLatestEpisodeComments(userId),
       recommendedPodcasts: await this.recommendedPodcasts(userId)
     }
   }
@@ -157,21 +159,46 @@ export default class UserService {
       .execute()
   }
   async listLatestEpisodeComments(userId: number) {
-  //   // I will start with following episodes, then I complement with podcast's comments in the same language that the user is studing
-  //   const { learningLanguageId } = await db
-  //     .selectFrom('users')
-  //     .where('users.id', '=', userId)
-  //     .select('users.learningLanguageId')
-  //     .executeTakeFirstOrThrow()
+    const { learningLanguageId } = await db
+      .selectFrom('users')
+      .where('users.id', '=', userId)
+      .select('users.learningLanguageId')
+      .executeTakeFirstOrThrow()
 
-  //   return await db
-  //     .selectFrom('comments')
-  //     .selectFrom('savedPodcasts')
-  //     .where('savedPodcasts.userId', '=', userId)
-  //     .innerJoin('podcasts', 'podcasts.id', 'savedPodcasts.podcastId')
-  //     .select(['id', 'name', 'coverImage'])
-  //     .orderBy('savedPodcasts.createdAt', 'desc')
-  //     .execute()
+    return await db
+      .selectFrom('comments')
+      .innerJoin('episodes', 'episodes.id', 'comments.resourceId')
+      .innerJoin('podcasts', 'episodes.podcastId', 'podcasts.id')
+      .innerJoin('users', 'users.id', 'comments.userId')
+      .leftJoin(
+        db
+          .selectFrom('savedPodcasts')
+          .select(['savedPodcasts.podcastId', 'savedPodcasts.createdAt'])
+          .where('savedPodcasts.userId', '=', userId)
+          .as('userSavedPodcasts'),
+        'userSavedPodcasts.podcastId',
+        'podcasts.id'
+      )
+      .where('comments.resourceType', '=', 'episodes')
+      .where('podcasts.targetLanguageId', '=', learningLanguageId)
+      .select([
+        'comments.id as id',
+        'comments.content',
+        'comments.userId as authorId',
+        'users.name as authorName',
+        'users.avatar as authorAvatar',
+        'episodes.id as episodeId',
+        'episodes.title as episodeTitle',
+        'episodes.image as episodeImage',
+        'podcasts.id as podcastId',
+        'podcasts.name as podcastName',
+        'podcasts.coverImage as podcastImage',
+        'comments.createdAt',
+        'comments.updatedAt'
+      ])
+      .orderBy(['userSavedPodcasts.createdAt desc', 'comments.createdAt desc'])
+      .limit(8)
+      .execute()
   }
 
   async recommendedPodcasts(userId: number) {
