@@ -28,7 +28,6 @@ export class PodcastsService {
         .execute()
     ).map(({ id }) => id)
 
-    console.log(`Updating all podcasts`, podcastIdsWithRssFeed)
     for (const podcastId of podcastIdsWithRssFeed) {
       await this.updatePodcastFromRss(podcastId)
     }
@@ -47,7 +46,7 @@ export class PodcastsService {
         'podcasts.id',
         'givenPodcastComments.resourceId'
       )
-      .select(({ fn, val, eb }) => [
+      .select(({ fn, val }) => [
         'podcasts.id',
         'podcasts.name',
         fn<string>('SUBSTR', ['description', val(0), val(150)]).as(
@@ -127,7 +126,7 @@ export class PodcastsService {
       .execute()
   }
 
-  async getPodcastById(podcastId: number, requestedByUserId?: number | null) {
+  async getPodcastById(podcastId: number, userId?: number | null) {
     const rawPodcast = await db
       .selectFrom('podcasts')
       .innerJoin('languages', 'podcasts.targetLanguageId', 'languages.id')
@@ -198,12 +197,12 @@ export class PodcastsService {
     }
 
     let isSavedByUser: boolean | undefined
-    if (requestedByUserId) {
+    if (userId) {
       isSavedByUser = (await db
         .selectFrom('savedPodcasts')
         .selectAll()
         .where('podcastId', '=', podcastId)
-        .where('userId', '=', requestedByUserId)
+        .where('userId', '=', userId)
         .executeTakeFirst())
         ? true
         : false

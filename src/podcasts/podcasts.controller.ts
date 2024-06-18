@@ -65,7 +65,6 @@ export class PodcastsController {
   }
 
   @Post('/')
-  @UseGuards(AuthGuard) // TODO: check if this is necessary
   @UseInterceptors(
     FileInterceptor('coverImageFile', {
       storage: diskStorage({
@@ -87,7 +86,7 @@ export class PodcastsController {
           fileIsRequired: false
         })
     )
-    coverImageFile: Express.Multer.File | undefined,
+    coverImageFile: Express.Multer.File | undefined
   ) {
     let coverImageName: string | null = null
     if (createPodcastDto.coverImageUrl) {

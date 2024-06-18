@@ -1,4 +1,11 @@
-import { IsBoolean, IsNumber, IsOptional } from 'class-validator'
+import { IsBoolean, IsIn, IsNumber, IsOptional } from 'class-validator'
+import { EpisodeTemplate } from './episodes.service'
+
+export class EpisodeTemplateQuery {
+  @IsOptional()
+  @IsIn(['detailed', 'succint'])
+  template?: EpisodeTemplate
+}
 
 export class EpisodeReproductionDto {
   @IsOptional()

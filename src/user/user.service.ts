@@ -4,7 +4,6 @@ import {
   UnauthorizedException
 } from '@nestjs/common'
 import { compare } from 'bcrypt'
-import { episode } from 'podcast-partytime/dist/parser/phase/phase-2'
 import { db } from 'src/db/connection.db'
 import { generateAuthToken } from 'src/utils/auth.utils'
 
@@ -39,6 +38,7 @@ export default class UserService {
         'users.avatar',
         'users.createdAt',
         'isPremium',
+        'isAdmin',
         'isProfilePrivate',
         'canOthersContact',
         'languages.name as learning',

@@ -1,10 +1,42 @@
-import { Injectable } from '@nestjs/common'
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException
+} from '@nestjs/common'
 import { db } from 'src/db/connection.db'
 import { sql } from 'kysely'
 import { Episode } from 'podcast-partytime'
+import { AutomationsService } from 'src/transcriptions/automations.service'
+import { sify } from 'chinese-conv'
+import { generateExercises as gptGenerateExercises } from 'src/integrations/open-ai.integrations'
+import { escape } from 'querystring'
+import { converToTraditional, converToSimplfied } from 'src/words/words.utils'
+import { convertIfChinese } from 'src/utils/chinese.utils'
+
+export type EpisodeTemplate = 'detailed' | 'succint'
 
 @Injectable()
 export class EpisodesService {
+  constructor(private readonly automationsService: AutomationsService) {}
+
+  async listTinyPodcastEpisodes(podcastId: number) {
+    const episodes = await db
+      .selectFrom('episodes')
+      .innerJoin('podcasts', 'episodes.podcastId', 'podcasts.id')
+      .select(({ fn }) => [
+        'episodes.id',
+        'episodes.title',
+        'podcasts.name as podcastName',
+        fn<string | null>('IFNULL', [
+          'episodes.image',
+          'podcasts.coverImage'
+        ]).as('image')
+      ])
+      .where('episodes.podcastId', '=', podcastId)
+      .execute()
+    return episodes
+  }
+
   createEpisodesFromFeed(episodes: Episode[], podcastId: number) {
     // TODO: complete the rest of metadata
     db.insertInto('episodes')
@@ -26,17 +58,99 @@ export class EpisodesService {
       .execute()
   }
 
-  async getEpisodeById(episodeId: number, userId?: number) {
+  async updateTranscript(
+    episodeId: number,
+    autogenerate: boolean,
+    transcript?: string
+  ) {
+    let newTranscript: string
+    if (!transcript && autogenerate) {
+      newTranscript = await this.automationsService.generateAutomaticTranscript(
+        await this.getEpisodeAudioUrl(episodeId)
+      )
+      if (!newTranscript)
+        throw new InternalServerErrorException(
+          'Could not auto-generate the transcription.'
+        )
+    } else {
+      newTranscript = transcript
+    }
+    await db
+      .updateTable('episodes')
+      .set({ transcript: newTranscript })
+      .where('id', '=', episodeId)
+      .execute()
+    return { transcript: newTranscript }
+  }
+
+  async generateExercises(episodeId: number) {
+    const transcript = (
+      await db
+        .selectFrom('episodes')
+        .select('transcript')
+        .where('id', '=', episodeId)
+        .executeTakeFirst()
+    )?.transcript
+    if (!transcript)
+      throw new BadRequestException('The episode does not have a transcript.')
+    const exercises = await gptGenerateExercises({
+      transcript,
+      model: 'gpt-4o'
+    })
+    return exercises
+  }
+
+  async getEpisodeById(
+    episodeId: number,
+    userId: number | null,
+    template: EpisodeTemplate
+  ) {
+    if (template === 'succint') {
+      return await db
+        .selectFrom('episodes')
+        .innerJoin('podcasts', 'episodes.podcastId', 'podcasts.id')
+        .select(({ fn }) => [
+          'episodes.id',
+          'episodes.title',
+          'podcasts.name as podcastName',
+          fn<string | null>('IFNULL', [
+            'episodes.image',
+            'podcasts.coverImage'
+          ]).as('image')
+        ])
+        .where('episodes.id', '=', episodeId)
+        .executeTakeFirstOrThrow()
+    }
+
+    const userLanguage = await db
+      .selectFrom('users')
+      .select(['learningLanguageId', 'languageVariant'])
+      .where('id', '=', userId)
+      .executeTakeFirst()
+
     const episode = await this.episodeBaseQuery(userId)
       .where('episodes.id', '=', episodeId)
       .executeTakeFirstOrThrow()
+
+    const podcast = await db
+      .selectFrom('podcasts')
+      .innerJoin('languages', 'languages.id', 'podcasts.targetLanguageId')
+      .select([
+        'podcasts.id',
+        'podcasts.name',
+        'coverImage',
+        'languages.name as targetLanguage'
+      ])
+      .where('podcasts.id', '=', episode.podcastId)
+      .executeTakeFirstOrThrow()
+
+    const { title, description, transcript, ...episodeRest } = episode
     return {
-      ...episode,
-      belongsTo: await db
-        .selectFrom('podcasts')
-        .select(['id', 'name', 'coverImage'])
-        .where('id', '=', episode.podcastId)
-        .executeTakeFirstOrThrow()
+      ...episodeRest,
+      title: convertIfChinese(userLanguage, title),
+      description: convertIfChinese(userLanguage, description),
+      transcript: convertIfChinese(userLanguage, transcript),
+      belongsTo: podcast
     }
   }
 
@@ -112,6 +226,7 @@ export class EpisodesService {
           'title',
           'duration',
           'description',
+          'transcript',
           'episodes.contentUrl',
           'episodes.image',
           'publishedAt',
@@ -130,6 +245,7 @@ export class EpisodesService {
           'title',
           'duration',
           'description',
+          'transcript',
           'episodes.contentUrl',
           'episodes.image',
           'publishedAt',
@@ -138,5 +254,15 @@ export class EpisodesService {
           )
         ])
     }
+  }
+
+  private async getEpisodeAudioUrl(episodeId: number) {
+    return (
+      await db
+        .selectFrom('episodes')
+        .select('contentUrl')
+        .where('id', '=', episodeId)
+        .executeTakeFirstOrThrow()
+    ).contentUrl
   }
 }
