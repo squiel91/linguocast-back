@@ -89,6 +89,15 @@ interface ExercisesTable {
   updatedAt: ColumnType<Date, string | undefined, never>
 }
 
+interface ExerciseResponseTable {
+  userId: number
+  exerciseId: number
+  score: number
+  response: string
+  feedback?: string
+  createdAt: ColumnType<Date, string | undefined, never>
+}
+
 interface EmbeddedsTable {
   id: Generated<number>
   episodeId: number
@@ -158,6 +167,7 @@ export interface Database {
   savedPodcasts: SavedPodcastsTable
   episodes: EpisodesTable
   exercises: ExercisesTable
+  exerciseResponses: ExerciseResponseTable
   embeddeds: EmbeddedsTable
   dictionary: DictionaryTable
   userWords: UserWordsTable

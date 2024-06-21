@@ -94,8 +94,7 @@ export class EpisodesService {
     if (!transcript)
       throw new BadRequestException('The episode does not have a transcript.')
     const exercises = await gptGenerateExercises({
-      transcript,
-      model: 'gpt-4o'
+      transcript
     })
     return exercises
   }

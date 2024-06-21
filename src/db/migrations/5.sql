@@ -81,3 +81,18 @@ CREATE TABLE dailyActivity (
 );
 
 ALTER TABLE users ADD languageVariant VARCHAR(64);
+ALTER TABLE users ADD isAdmin BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE exercises ADD start INTEGER;
+ALTER TABLE exercises ADD duration INTEGER;
+
+CREATE TABLE exerciseResponses (
+  userId INTEGER NOT NULL,
+  exerciseId INTEGER NOT NULL,
+  response TEXT NOT NULL,
+  score INTEGER NOT NULL,
+  feedback TEXT,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (userId) REFERENCES users(id),
+  FOREIGN KEY (exerciseId) REFERENCES exercises(id),
+  UNIQUE(userId, exerciseId)
+);

@@ -29,3 +29,39 @@ export type Exercise =
   | SelectMultipleExercise
   | FreeResponseExercise
 
+export interface RawBaseExercise {
+  id: number
+  episodeId: number
+  rawContent: string
+  start: number | null
+  duration: number | null
+  updatedAt: Date
+  createdAt: Date
+}
+
+export interface RawExercise extends RawBaseExercise {
+  rawResponse: string | null
+  score: number | null
+  feedback: string | null
+  respondedAt: Date | null
+}
+
+// Exercise response
+interface MultipleChoiceExerciseResponse {
+  type: 'multiple-choice'
+  response: number
+}
+interface SelectMultipleExerciseResponse {
+  type: 'select-multiple'
+  response: number[]
+}
+
+interface FreeResponseExerciseResponse {
+  type: 'free-response'
+  response: string
+}
+
+export type ExerciseResponse =
+  | MultipleChoiceExerciseResponse
+  | SelectMultipleExerciseResponse
+  | FreeResponseExerciseResponse

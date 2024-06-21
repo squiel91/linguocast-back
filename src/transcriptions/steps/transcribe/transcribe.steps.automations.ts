@@ -7,8 +7,6 @@ export const transcribe = async (
   shouldCache = true
 ): Promise<Transcript> => {
   let transcriptionResponse: Transcript
-  console.log('Hiiii')
-
   if (shouldCache) {
     const cachedTranscriptionResult = await db
       .selectFrom('transcriptCache')

@@ -1,6 +1,61 @@
+import { InternalServerErrorException, UnprocessableEntityException } from '@nestjs/common'
 import OpenAI from 'openai'
+import { transcript } from 'podcast-partytime/dist/parser/phase/phase-1'
+import { Level } from 'src/types/general.types'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+export const getFreeResponseExercisesCorrection = async (
+  question: string,
+  responseModel: string,
+  userResponse: string,
+  language: string,
+  level: Level,
+  model = 'gpt-4o'
+) => {
+  const response = await openai.chat.completions.create({
+    model,
+    messages: [
+      {
+        role: 'system',
+        content: `You are a language teacher. Correct the following ${level.toUpperCase()} ${language} learner's response to the question:
+"${question}"
+
+The expected response is:
+"${responseModel}"
+
+Provide your corrections in a valid JSON format without any extra comments or code formatting:
+{
+    "isCorrect": boolean,
+    "feedback": string
+}
+
+- isCorrect: true if the response mostly addresses the model answer despite minor errors. False if there are major grammar issues or it doesn't address the main part.
+- feedback: Briefly explain why the response is correct or how it can be improved. Give feedback in ${language}.`
+      },
+      { role: 'user', content: [{ type: 'text', text: userResponse }] }
+    ],
+    temperature: 1,
+    max_tokens: 500,
+    top_p: 1,
+    n: 1, // number of choices
+    frequency_penalty: 0,
+    presence_penalty: 0
+  })
+
+  const rawCorrection = response.choices[0].message.content
+
+  const formatException = new InternalServerErrorException(
+    'The model failed to return a properly formed correction.'
+  )
+  try {
+    const { isCorrect, feedback } = JSON.parse(rawCorrection)
+    if (typeof isCorrect !== 'boolean' || !feedback) throw formatException
+    return { isCorrect, feedback }
+  } catch (error) {
+    throw formatException
+  }
+}
 
 interface Props {
   transcript: string
@@ -9,32 +64,55 @@ interface Props {
 }
 
 export const generateExercises = async ({
-  transcript,
-  model = 'gpt-3.5-turbo-0125',
-  quantity = 4
+  transcript: rawTimeAnnotatedTranscript,
+  model = 'gpt-4o'
 }: Props) => {
+  if (!rawTimeAnnotatedTranscript)
+    throw new UnprocessableEntityException(
+      'There is not an available transcript.'
+    )
+  const transcript = rawTimeAnnotatedTranscript
+    .split('\n')
+    .map(rawTimeAnnotatedWord => {
+      if (rawTimeAnnotatedWord.trim() === '') return '\n'
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const [start, end, text] = rawTimeAnnotatedWord.split('\t')
+      return text
+    })
+    .join('')
+
   const response = await openai.chat.completions.create({
     model,
     messages: [
       {
         role: 'system',
-        content: `This is a chinese learning podcast episode automatically generated transcript (it might contain a few character errors).
-  I need to generate 4 multiple choice exercises that test some of the most
-  important takeouts. It should be in JSON format with this format:
-  [
-    {
-      "type": "multiple-choice" // always include this type for each object
-      "question": "Which is the largest number? ",
-      "correctChoice": "44",
-      "incorrectChoices": ["23", "2", "21"] // always 3 incorrect choices
-    },
-    // and ${quantity} more exercise${quantity > 1 ? 's' : ''})
-  ]
-  
-  The questions and answers need to be in Chinese.
-  Use a similar vocabulary and level used in the podcast.
-  
-  Important: Don't just reply a valid JSON list, no other text apart from that. The reply should be a valid json, without any comments and no code formatting.`
+        content: `This is a Chinese learning podcast episode's automatically generated transcript (it might contain a few character errors).
+
+Generate 6 exercises in JSON format, using similar vocabulary and level as the podcast.
+Try to evaluate the main episode takeaways and what is mentioned related to the main topic.  
+The format should be:
+
+[
+  {
+    "type": "multiple-choice",
+    "question": "QUESTION IN CHINESE",
+    "correctChoice": "CORRECT ANSWER",
+    "incorrectChoices": ["WRONG ANSWER 1", "WRONG ANSWER 2", "WRONG ANSWER 3"]
+  }, (2 of this type)
+  {
+    "type": "select-multiple",
+    "question": "QUESTION IN CHINESE",
+    "correctChoices": ["CORRECT ANSWER 1", "CORRECT ANSWER 2"],
+    "incorrectChoices": ["WRONG ANSWER 1", "WRONG ANSWER 2"]
+  }, (2 of this type)
+  {
+    "type": "free-response",
+    "question": "QUESTION IN CHINESE",
+    "response": "MODEL RESPONSE IN CHINESE"
+  } (2 of this type)
+]
+
+The response should be a valid JSON list with no comments or code formatting.`
       },
       { role: 'user', content: [{ type: 'text', text: transcript }] }
     ],
@@ -46,8 +124,6 @@ export const generateExercises = async ({
     presence_penalty: 0
   })
 
-  console.log(response.usage)
-  console.log(response.choices[0].message.content)
   const rawExercise = response.choices[0].message.content
   return JSON.parse(rawExercise)
 }

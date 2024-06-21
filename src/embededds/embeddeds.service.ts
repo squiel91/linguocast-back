@@ -79,8 +79,6 @@ export class EmbeddedsService {
       ...rest
     }))
 
-    console.log({ exercisesEmbeddeds })
-
     return [...rawEmbeddeds, ...exercisesEmbeddeds].map(
       ({ content: rawcontent, type, ...rest }) => {
         const content = JSON.parse(rawcontent)

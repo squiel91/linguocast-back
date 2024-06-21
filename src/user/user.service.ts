@@ -27,6 +27,19 @@ export default class UserService {
     }
   }
 
+  getUserLanguagePreferences(userId: number | null) {
+    return userId
+      ? db
+          .selectFrom('users')
+          .select([
+            'learningLanguageId as languageId',
+            'languageVariant as variant',
+            'level'
+          ])
+          .where('id', '=', userId)
+          .executeTakeFirstOrThrow()
+      : null
+  }
   async viewUser(userId: number) {
     return await db
       .selectFrom('users')
