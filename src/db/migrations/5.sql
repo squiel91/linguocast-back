@@ -14,11 +14,9 @@ CREATE TABLE embeddables (
 CREATE TABLE exercises (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   episodeId INTEGER NOT NULL,
-  -- isGraded BOOLEAN DEFAULT TRUE NOT NULL,
-  -- isAutomaticallyCreated BOOLEAN FALSE NOT NULL,
-  -- model VARCHAR(64), -- only if automatically created
-  -- isRevised BOOLEAN DEFAULT TRUE NOT NULL,
   content JSON NOT NULL, -- the exercise itself
+  start INTEGER,
+  duration INTEGER,
   createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (episodeId) REFERENCES episodes(id)
@@ -71,19 +69,10 @@ CREATE TABLE userWords (
   UNIQUE(userId, wordId)
 );
 
-CREATE TABLE dailyActivity (
-  userId INTEGER NOT NULL,
-  wordsAddedCount INTEGER NOT NULL DEFAULT 0,
-  wordsReviewedCount INTEGER NOT NULL DEFAULT 0,
-  day INTEGER NOT NULL,
-  FOREIGN KEY (userId) REFERENCES userId(id)
-  UNIQUE(userId, day)
-);
+
 
 ALTER TABLE users ADD languageVariant VARCHAR(64);
 ALTER TABLE users ADD isAdmin BOOLEAN NOT NULL DEFAULT FALSE;
-ALTER TABLE exercises ADD start INTEGER;
-ALTER TABLE exercises ADD duration INTEGER;
 
 CREATE TABLE exerciseResponses (
   userId INTEGER NOT NULL,
@@ -95,4 +84,13 @@ CREATE TABLE exerciseResponses (
   FOREIGN KEY (userId) REFERENCES users(id),
   FOREIGN KEY (exerciseId) REFERENCES exercises(id),
   UNIQUE(userId, exerciseId)
+);
+
+CREATE TABLE dailyActivity (
+  userId INTEGER NOT NULL,
+  wordsAddedCount INTEGER NOT NULL DEFAULT 0,
+  wordsReviewedCount INTEGER NOT NULL DEFAULT 0,
+  day INTEGER NOT NULL,
+  FOREIGN KEY (userId) REFERENCES userId(id)
+  UNIQUE(userId, day)
 );

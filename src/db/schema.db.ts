@@ -125,12 +125,12 @@ interface UserWordsTable {
   createdAt: string
 }
 
-// interface DailyActivityTable {
-//   userId: number
-//   wordsAddedCount: number
-//   wordsReviewedCount: number
-//   day: number
-// }
+interface DailyActivityTable {
+  userId: number
+  wordsAddedCount: number
+  wordsReviewedCount: number
+  day: number
+}
 
 interface MeasureWordsTable {
   wordId: number
@@ -171,7 +171,7 @@ export interface Database {
   embeddeds: EmbeddedsTable
   dictionary: DictionaryTable
   userWords: UserWordsTable
-  // dailyActivity: DailyActivityTable
+  dailyActivity: DailyActivityTable
   measureWords: MeasureWordsTable
   comments: CommentsTable
   reproductions: ReproductionsTable
