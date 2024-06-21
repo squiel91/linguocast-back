@@ -4367,6 +4367,11 @@ openai@^4.49.1:
     node-fetch "^2.6.7"
     web-streams-polyfill "^3.2.1"
 
+opencc-js@^1.0.5:
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/opencc-js/-/opencc-js-1.0.5.tgz#4754a9407590c5d581c9b4788acd43e8627dd464"
+  integrity sha512-LD+1SoNnZdlRwtYTjnQdFrSVCAaYpuDqL5CkmOaHOkKoKh7mFxUicLTRVNLU5C+Jmi1vXQ3QL4jWdgSaa4sKjg==
+
 optionator@^0.9.3:
   version "0.9.4"
   resolved "https://registry.yarnpkg.com/optionator/-/optionator-0.9.4.tgz#7ea1c1a5d91d764fb282139c88fe11e182a3a734"
@@ -4546,11 +4551,6 @@ pino@^7.0.5:
     safe-stable-stringify "^2.1.0"
     sonic-boom "^2.2.1"
     thread-stream "^0.15.1"
-
-pinyin-tone@^2.2.0:
-  version "2.2.0"
-  resolved "https://registry.yarnpkg.com/pinyin-tone/-/pinyin-tone-2.2.0.tgz#b913592d42fcc3c26c7d03b06603414bfdfc1859"
-  integrity sha512-1Yvv++Q8rYq3LCXIZPipfybJv6h/ynaUdz8x62DbTybUvdcMX5b2/2Y1BlCRJnUc6o07NY7hJ7lduhBziPRN7w==
 
 pirates@^4.0.4:
   version "4.0.6"

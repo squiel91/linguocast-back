@@ -39,6 +39,7 @@
     "jsonwebtoken": "^9.0.2",
     "kysely": "^0.27.3",
     "openai": "^4.49.1",
+    "opencc-js": "^1.0.5",
     "podcast-partytime": "^4.8.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1"
