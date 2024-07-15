@@ -1,79 +1,135 @@
 import { 
   IsBoolean,
-  IsInt,
   IsNotEmpty,
-  IsNumber,
   IsOptional,
   IsString,
-  IsDateString,
   IsArray,
   ArrayMinSize,
   IsIn,
   IsUrl
 } from 'class-validator'
+import { IsStringOrNull } from 'src/episodes/episodes.validations'
+
+export class PodcastSuggestionDto {
+  @IsNotEmpty()
+  @IsString()
+  name: string
+
+  @IsNotEmpty()
+  @IsString()
+  targetLanguage: string
+
+  @IsOptional()
+  @IsString()
+  mediumLanguage: string | null
+
+  @IsOptional()
+  @IsString()
+  rss: string
+
+  @IsArray()
+  @IsIn(['beginner', 'intermediate', 'upper-intermediate', 'advanced'], {
+    each: true
+  })
+  @ArrayMinSize(1)
+  levels: string[]
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  links?: string[]
+}
 
 export class PodcastCreationDto {
   @IsNotEmpty()
   @IsString()
-  name: string;
+  name: string
 
   @IsOptional()
   @IsString()
-  coverImageUrl: string;
+  image: string
 
   @IsNotEmpty()
   @IsString()
-  description: string;
+  description: string
 
   @IsOptional()
-  @IsString()
-  rss?: string
-
   @IsArray()
   @IsUrl({}, { each: true })
-  @ArrayMinSize(1)
-  links: string[] | null;
+  links: string[] | null
 
   @IsNotEmpty()
   @IsString()
-  targetLanguage: string;
+  targetLanguage: string
 
   @IsOptional()
   @IsString()
-  mediumLanguage: string | null;
+  mediumLanguage: string | null
 
   @IsArray()
   @IsIn(['beginner', 'intermediate', 'upper-intermediate', 'advanced'], {
-    each: true,
+    each: true
   })
   @ArrayMinSize(1)
-  levels: string[];
+  levels: string[]
+}
+
+export class PodcastUpdateDto {
+  @IsOptional()
+  @IsString()
+  name: string
 
   @IsOptional()
-  @IsInt()
-  episodeCount: number | null;
+  @IsStringOrNull()
+  image: string | null
+
+  @IsOptional()
+  @IsString()
+  description: string
+
+  @IsOptional()
+  @IsArray()
+  @IsUrl({}, { each: true })
+  links: string[] | null
+
+  @IsOptional()
+  @IsString()
+  targetLanguage: string | null
+
+  @IsOptional()
+  @IsString()
+  mediumLanguage: string | null
 
   @IsOptional()
   @IsBoolean()
-  isActive: boolean | null;
+  isListed: boolean | null
 
   @IsOptional()
-  @IsDateString()
-  since: string | null;
+  @IsArray()
+  @IsIn(['beginner', 'intermediate', 'upper-intermediate', 'advanced'], {
+    each: true
+  })
+  @ArrayMinSize(1)
+  levels: string[]
+}
+
+export class PodcastRssCreationDto {
+  @IsNotEmpty()
+  @IsString()
+  rss: string
+
+  @IsNotEmpty()
+  @IsString()
+  targetLanguage: string
 
   @IsOptional()
-  @IsBoolean()
-  hasVideo: boolean | null;
+  @IsString()
+  mediumLanguage: string | null
 
-  @IsOptional()
-  @IsNumber()
-  avarageEpisodeMinutesDuration: number | null;
-
-  @IsOptional()
-  @IsBoolean()
-  hasTranscript: boolean | null;
-
-  @IsOptional()
-  @IsBoolean()
-  isTranscriptFree: boolean | null;
+  @IsArray()
+  @IsIn(['beginner', 'intermediate', 'upper-intermediate', 'advanced'], {
+    each: true
+  })
+  @ArrayMinSize(1)
+  levels: string[]
 }

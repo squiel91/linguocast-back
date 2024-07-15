@@ -17,6 +17,7 @@ interface UsersTable {
   languageVariant?: string
   level?: string
   isPremium: number
+  isCreator: number
   isAdmin: number
   password: string
   createdAt: ColumnType<string, string | undefined, never>
@@ -25,6 +26,7 @@ interface UsersTable {
 
 interface PodcastsTable {
   id: Generated<number>
+  byUserId: number // TODO add foreign key contraint in SQLite
   name: string
   description: string
   coverImage?: string
@@ -40,11 +42,27 @@ interface PodcastsTable {
   avarageEpisodeMinutesDuration?: number
   hasTranscript?: number
   isTranscriptFree?: number
-  uploadedByUserId: number
   lastModified?: string // for rss refresh catching
   eTag?: string // for rss refresh catching
+  isListed: number
+  isPremium: number
+  isDeleted: number
   createdAt: ColumnType<string, string | undefined, never>
   updatedAt: ColumnType<string, string | undefined, never>
+}
+
+interface SuggestedPodcastsTable {
+  id: Generated<number>
+  byUserId: number // TODO add foreign key contraint in SQLite
+  name: string
+  rss?: string
+  links?: string
+  levels: string
+  targetLanguageId: number
+  mediumLanguageId?: number
+  isActive?: number
+  hasTranscript?: number
+  createdAt: ColumnType<string, string | undefined, never>
 }
 
 interface SavedPodcastsTable {
@@ -66,7 +84,7 @@ interface CommentsTable {
 
 interface EpisodesTable {
   id: Generated<number>
-  sourceId: string
+  sourceId?: string
   podcastId: number
   title: string
   image?: string
@@ -75,6 +93,10 @@ interface EpisodesTable {
   transcript?: string
   contentUrl: string
   publishedAt: string
+  isListed: number
+  isPremium: number
+  isDeleted: number
+  isFromRss: number
   createdAt: ColumnType<string, string | undefined, never>
   updatedAt: ColumnType<string, string | undefined, never>
 }
@@ -167,6 +189,7 @@ export interface Database {
   savedPodcasts: SavedPodcastsTable
   episodes: EpisodesTable
   exercises: ExercisesTable
+  suggestedPodcasts: SuggestedPodcastsTable
   exerciseResponses: ExerciseResponseTable
   embeddeds: EmbeddedsTable
   dictionary: DictionaryTable

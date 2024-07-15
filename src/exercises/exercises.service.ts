@@ -45,16 +45,95 @@ export class ExercisesService {
     )
   }
 
+  async listExerciseResponses(exerciseId: number) {
+    const rawResponses = await db
+      .selectFrom('exerciseResponses')
+      .innerJoin('users', 'users.id', 'exerciseResponses.userId')
+      .select([
+        'exerciseResponses.score',
+        'exerciseResponses.response as rawResponse',
+        'exerciseResponses.feedback as rawFeedback',
+        'exerciseResponses.createdAt',
+        'exerciseResponses.userId',
+        'users.name as userName',
+        'users.avatar as userAvatar'
+      ])
+      .where('exerciseId', '=', exerciseId)
+      .execute()
+
+    return Promise.all(
+      rawResponses.map(async ({ rawResponse, rawFeedback, ...rest }) => {
+        // here the response is based on the suffled transformation. We have to unshuffle.
+        let processedResponse = JSON.parse(rawResponse)
+
+        const exercise = JSON.parse(
+          (
+            await db
+              .selectFrom('exercises')
+              .select('exercises.content')
+              .where('exercises.id', '=', exerciseId)
+              .executeTakeFirstOrThrow()
+          ).content
+        ) as Exercise
+
+        console.log({ exercise })
+        if (
+          exercise.type === 'multiple-choice' ||
+          exercise.type === 'select-multiple'
+        ) {
+          const shuffledOptions = shufflePositions(
+            exerciseId,
+            exercise.type === 'multiple-choice'
+              ? exercise.incorrectChoices.length + 1
+              : exercise.incorrectChoices.length +
+                  exercise.correctChoices.length
+          )
+          if (exercise.type === 'multiple-choice') {
+            processedResponse = shuffledOptions[processedResponse as number]
+          }
+          if (exercise.type === 'select-multiple') {
+            console.log({ processedResponse })
+            processedResponse = (processedResponse as number[]).map(
+              responseIndex => shuffledOptions[responseIndex]
+            )
+          }
+        }
+        return {
+          response: processedResponse,
+          feedback: JSON.parse(rawFeedback),
+          ...rest
+        }
+    }))
+  }
+
   async getCreatorEpisodeExercises(userId: number, episodeId: number) {
     const rawExercises = await db
       .selectFrom('exercises')
-      .select([
+      .leftJoin(
+        db
+          .selectFrom('exerciseResponses')
+          .select(({ fn }) => [
+            'exerciseId',
+            fn<number>('SUM', ['score']).as('correctCount'),
+            fn<number>('COUNT', ['userId']).as('rawResponsesCount')
+          ])
+          .groupBy('exerciseId')
+          .as('userExerciseResponsesCount'),
+        'exercises.id',
+        'userExerciseResponsesCount.exerciseId'
+      )
+      .select(({ fn, val }) => [
         'exercises.id',
         'exercises.episodeId',
         'exercises.content as rawContent',
         'exercises.start',
         'exercises.duration',
         'exercises.updatedAt',
+        'userExerciseResponsesCount.correctCount',
+        fn<number>('IFNULL', [
+          'userExerciseResponsesCount.rawResponsesCount',
+          val(0)
+        ]).as('responsesCount'),
         'exercises.createdAt'
       ])
       .where('episodeId', '=', episodeId)

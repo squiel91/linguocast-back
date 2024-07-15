@@ -29,12 +29,12 @@ export const UserIdOrThrowUnauthorized = createParamDecorator(
   (_, context: ExecutionContext) => {
     const request = context.switchToHttp().getRequest()
     const token = extractTokenFromHeader(request)
-    if (!token) return new UnauthorizedException()
+    if (!token) throw new UnauthorizedException()
     try {
       const { id } = verify(token, process.env.JWT_SECRET) as { id: number }
       return id
     } catch {
-      return new UnauthorizedException()
+      throw new UnauthorizedException()
     }
   }
 )

@@ -39,6 +39,11 @@ export interface RawBaseExercise {
   createdAt: Date
 }
 
+export interface RawCreatorExercise extends RawBaseExercise {
+  responsesCount: number
+  correctCount: number
+}
+
 export interface RawExercise extends RawBaseExercise {
   rawResponse: string | null
   score: number | null

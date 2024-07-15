@@ -8,6 +8,14 @@ import UserService from 'src/user/user.service'
 export class UsersService {
   constructor(private readonly userService: UserService) {}
 
+  async getUserName(email: string) {
+    return await db
+      .selectFrom('users')
+      .select('name')
+      .where('users.email', '=', email.trim().toLowerCase())
+      .executeTakeFirst()
+  }
+
   async viewUser(userId: number) {
     const userInfo = await db
       .selectFrom('users')

@@ -1,23 +1,33 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
-  InternalServerErrorException
+  InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common'
 import { db } from 'src/db/connection.db'
 import { sql } from 'kysely'
 import { Episode } from 'podcast-partytime'
 import { AutomationsService } from 'src/transcriptions/automations.service'
-import { sify } from 'chinese-conv'
 import { generateExercises as gptGenerateExercises } from 'src/integrations/open-ai.integrations'
-import { escape } from 'querystring'
-import { converToTraditional, converToSimplfied } from 'src/words/words.utils'
 import { convertIfChinese } from 'src/utils/chinese.utils'
+import { IUpdateEpisode } from './episodes.types'
+import getAudioDurationInSeconds from 'get-audio-duration'
 
 export type EpisodeTemplate = 'detailed' | 'succint'
 
 @Injectable()
 export class EpisodesService {
   constructor(private readonly automationsService: AutomationsService) {}
+
+  async viewEpisodeMetrics(userId: number, episode: number) {
+    // TODO: this will need a refactor
+    return db
+      .selectFrom('reproductions')
+      .select(['leftOn', 'completedAt', 'updatedAt'])
+      .where('episodeId', '=', episode)
+      .execute()
+  }
 
   async listTinyPodcastEpisodes(podcastId: number) {
     const episodes = await db
@@ -37,6 +47,42 @@ export class EpisodesService {
     return episodes
   }
 
+  async createEpisode(
+    userId: number,
+    podcastId: number,
+    title: string,
+    audio: string,
+    description: string,
+    image: string | null
+  ) {
+    const creatorId = (
+      await db
+        .selectFrom('podcasts')
+        .select('podcasts.byUserId')
+        .where('id', '=', podcastId)
+        .executeTakeFirstOrThrow()
+    ).byUserId
+
+    if (creatorId !== userId)
+      throw new ForbiddenException(
+        'Only the creator can add new episodes to their podcasts'
+      )
+
+    return await db
+      .insertInto('episodes')
+      .values({
+        podcastId,
+        title,
+        description,
+        duration: await getAudioDurationInSeconds(audio),
+        contentUrl: audio,
+        image: image,
+        isFromRss: 0 // this is the default value, but to be explicit
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow()
+  }
+
   createEpisodesFromFeed(episodes: Episode[], podcastId: number) {
     // TODO: complete the rest of metadata
     db.insertInto('episodes')
@@ -44,7 +90,7 @@ export class EpisodesService {
         episodes
           .slice()
           .sort((a, b) => (new Date(a.pubDate) > new Date(b.pubDate) ? 1 : -1))
-          .map((episode) => ({
+          .map(episode => ({
             podcastId,
             sourceId: episode.guid || null,
             title: episode.title,
@@ -52,9 +98,63 @@ export class EpisodesService {
             duration: episode.duration,
             description: episode.description,
             contentUrl: episode.enclosure.url,
-            publishedAt: episode.pubDate.toISOString()
+            publishedAt: episode.pubDate.toISOString(),
+            isFromRss: 1,
+            isListed: 1
           }))
       )
+      .execute()
+  }
+
+  async updateEpisode(
+    userId: number,
+    episodeId: number,
+    {
+      title,
+      audio,
+      image,
+      description,
+      transcript,
+      isListed,
+      isPremium,
+      isDeleted
+    }: IUpdateEpisode
+  ) {
+    const creatorId = (
+      await db
+        .selectFrom('episodes')
+        .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
+        .select('podcasts.byUserId')
+        .where('episodes.id', '=', episodeId)
+        .where('episodes.isDeleted', '=', 0)
+        .executeTakeFirstOrThrow()
+    ).byUserId
+
+    if (creatorId !== userId)
+      throw new ForbiddenException('Only the creator an update the episode')
+
+    console.log({ title, description })
+    await db
+      .updateTable('episodes')
+      .set({
+        ...(title ? { title } : {}),
+        ...(audio ? { audio } : {}),
+        ...(image === null || typeof image === 'string' ? { image } : {}),
+        ...(description ? { description } : {}),
+        ...(transcript === null || typeof transcript === 'string'
+          ? { transcript }
+          : {}),
+        ...(typeof isListed === 'boolean'
+          ? { isListed: isListed ? 1 : 0 }
+          : {}),
+        ...(typeof isPremium === 'boolean'
+          ? { isPremium: isPremium ? 1 : 0 }
+          : {}),
+        ...(typeof isDeleted === 'boolean'
+          ? { isDeleted: isDeleted ? 1 : 0 }
+          : {})
+      })
+      .where('id', '=', episodeId)
       .execute()
   }
 
@@ -99,6 +199,55 @@ export class EpisodesService {
     return exercises
   }
 
+  async getCreatorsEpisodeById(resquesterId: number, episodeId: number) {
+    const rawEpisode = await db
+      .selectFrom('episodes')
+      .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
+      .select([
+        'episodes.id',
+        'episodes.title',
+        'episodes.contentUrl as audio',
+        'episodes.description',
+        'episodes.transcript',
+        'episodes.image',
+        'episodes.duration',
+        'episodes.isListed',
+        'episodes.isPremium',
+        'episodes.isFromRss',
+        'podcasts.byUserId as creatorId',
+        'episodes.podcastId',
+        'podcasts.name as podcastName',
+        'podcasts.coverImage as podcastImage'
+      ])
+      .where('episodes.id', '=', episodeId)
+      .where('episodes.isDeleted', '=', 0)
+      .executeTakeFirst()
+
+    if (!rawEpisode) throw new NotFoundException()
+    if (rawEpisode.creatorId !== resquesterId) throw new ForbiddenException()
+
+    const {
+      isListed,
+      isPremium,
+      podcastId,
+      podcastName,
+      isFromRss,
+      podcastImage,
+      ...episodeRest
+    } = rawEpisode
+
+    return {
+      ...episodeRest,
+      isListed: !!isListed,
+      isPremium: !!isPremium,
+      fromRss: !!isFromRss,
+      podcast: {
+        id: podcastId,
+        name: podcastName,
+        image: podcastImage
+      }
+    }
+  }
   async getEpisodeById(
     episodeId: number,
     userId: number | null,
@@ -118,6 +267,8 @@ export class EpisodesService {
           ]).as('image')
         ])
         .where('episodes.id', '=', episodeId)
+        .where('episodes.isListed', '=', 1)
+        .where('episodes.isDeleted', '=', 0)
         .executeTakeFirstOrThrow()
     }
 
@@ -138,7 +289,8 @@ export class EpisodesService {
         'podcasts.id',
         'podcasts.name',
         'coverImage',
-        'languages.name as targetLanguage'
+        'languages.name as targetLanguage',
+        'podcasts.byUserId as creatorId'
       ])
       .where('podcasts.id', '=', episode.podcastId)
       .executeTakeFirstOrThrow()
@@ -149,7 +301,7 @@ export class EpisodesService {
       title: convertIfChinese(userLanguage, title),
       description: convertIfChinese(userLanguage, description),
       transcript: convertIfChinese(userLanguage, transcript),
-      belongsTo: podcast
+      podcast
     }
   }
 
@@ -235,6 +387,8 @@ export class EpisodesService {
           'userReproductions.leftOn',
           'userReproductions.completedAt'
         ])
+        .where('episodes.isListed', '=', 1)
+        .where('episodes.isDeleted', '=', 0)
     } else {
       return db
         .selectFrom('episodes')
@@ -252,6 +406,8 @@ export class EpisodesService {
             'commentsCount'
           )
         ])
+        .where('episodes.isListed', '=', 1)
+        .where('episodes.isDeleted', '=', 0)
     }
   }
 
@@ -263,5 +419,25 @@ export class EpisodesService {
         .where('id', '=', episodeId)
         .executeTakeFirstOrThrow()
     ).contentUrl
+  }
+
+  async deleteEpisode(creatorId: number, episodeId: number) {
+    const episode = await db
+      .selectFrom('episodes')
+      .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
+      .select('podcasts.byUserId')
+      .where('episodes.id', '=', episodeId)
+      .where('episodes.isDeleted', '=', 0)
+      .where('podcasts.isDeleted', '=', 0)
+      .executeTakeFirst()
+
+    if (!episode) throw new NotFoundException()
+    if (episode.byUserId !== creatorId) throw new ForbiddenException()
+
+    await db
+      .updateTable('episodes')
+      .set({ isDeleted: 1 })
+      .where('id', '=', episodeId)
+      .execute()
   }
 }

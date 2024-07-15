@@ -52,7 +52,7 @@ export class EmbeddedsController {
       })
     })
   )
-  saveTemporalImage(
+  saveEmbeddedImage(
     @UploadedFile(
       new ParseFilePipeBuilder()
         .addFileTypeValidator({ fileType: /(jpg|jpeg|png|webp|svg)$/ })

@@ -6,6 +6,9 @@ import {
 import { compare } from 'bcrypt'
 import { db } from 'src/db/connection.db'
 import { generateAuthToken } from 'src/utils/auth.utils'
+import { daySinceEpoche } from 'src/utils/date.utils'
+import { DailyActivity } from './user.types'
+import { sql } from 'kysely'
 
 @Injectable()
 export default class UserService {
@@ -24,6 +27,125 @@ export default class UserService {
     return {
       user: await this.viewUser(user.id),
       token: generateAuthToken(user.id)
+    }
+  }
+
+  async getUserLearningJourney(userId: number) {
+    const today = daySinceEpoche()
+
+    const savedWords: number = (
+      await db
+        .selectFrom('userWords')
+        .select(({ fn }) => [fn<number>('COUNT', ['wordId']).as('count')])
+        .where('userId', '=', userId)
+        .executeTakeFirstOrThrow()
+    ).count
+
+    const dueToReviewWords: number = (
+      await db
+        .selectFrom('userWords')
+        .select(({ fn }) => fn<number>('COUNT', ['wordId']).as('count'))
+        .where('userId', '=', userId)
+        .where('reviewScheduledFor', '<=', today)
+        .executeTakeFirstOrThrow()
+    ).count
+
+    const savedPodcasts: number = (
+      await db
+        .selectFrom('savedPodcasts')
+        .select(({ fn }) => fn<number>('COUNT', ['podcastId']).as('count'))
+        .where('userId', '=', userId)
+        .executeTakeFirstOrThrow()
+    ).count
+
+    const comments: number = (
+      await db
+        .selectFrom('comments')
+        .select(({ fn }) => fn<number>('COUNT', ['id']).as('count'))
+        .where('userId', '=', userId)
+        .executeTakeFirstOrThrow()
+    ).count
+
+    const oneWeekAgoDay = today - 6 // 7 days including today
+    const dailyActivityRawHistory = await db
+      .selectFrom('dailyActivity')
+      .select(['day', 'wordsAddedCount', 'wordsReviewedCount'])
+      .where('day', '>=', oneWeekAgoDay)
+      .execute()
+
+    const activityMap = new Map<number, DailyActivity>()
+    dailyActivityRawHistory.forEach(
+      ({ day, wordsAddedCount, wordsReviewedCount }) => {
+        activityMap.set(day, {
+          day,
+          added: wordsAddedCount,
+          reviewed: wordsReviewedCount
+        })
+      }
+    )
+
+    const wordsWeeklyHistory: DailyActivity[] = []
+    for (let day = oneWeekAgoDay; day <= today; day++) {
+      if (activityMap.has(day)) {
+        wordsWeeklyHistory.push(activityMap.get(day))
+      } else {
+        wordsWeeklyHistory.push({
+          day,
+          added: 0,
+          reviewed: 0
+        })
+      }
+    }
+
+    const listeningTime = (
+      await db
+        .selectFrom('reproductions')
+        .innerJoin('episodes', 'episodes.id', 'reproductions.episodeId')
+        .select(
+          sql<number>`
+          SUM(
+            CASE
+              WHEN reproductions.completedAt IS NOT NULL AND episodes.duration IS NOT NULL
+              THEN episodes.duration
+              ELSE reproductions.leftOn
+            END
+          )
+        `.as('listeningTime')
+        )
+        .where('reproductions.userId', '=', userId)
+        .executeTakeFirstOrThrow()
+    ).listeningTime
+    const episodesCompleted: number = (
+      await db
+        .selectFrom('reproductions')
+        .select(({ fn }) => fn<number>('COUNT', ['episodeId']).as('count'))
+        .where('completedAt', 'is not', null)
+        .where('userId', '=', userId)
+        .executeTakeFirstOrThrow()
+    ).count
+
+    const { correct: correctExercises, total: totalExercises } = await db
+      .selectFrom('exerciseResponses')
+      .select(({ fn }) => [
+        fn<number>('SUM', ['score']).as('correct'),
+        fn<number>('COUNT', ['exerciseId']).as('total')
+      ])
+      .where('userId', '=', userId)
+      .executeTakeFirstOrThrow()
+
+    return {
+      savedWords,
+      dueToReviewWords,
+      savedPodcasts,
+      comments,
+      wordsWeeklyHistory,
+      listeningTime,
+      episodesCompleted,
+      exercises: {
+        correct: correctExercises,
+        incorrectCount: totalExercises - correctExercises,
+        total: totalExercises
+      }
     }
   }
 
@@ -51,6 +173,7 @@ export default class UserService {
         'users.avatar',
         'users.createdAt',
         'isPremium',
+        'isCreator',
         'isAdmin',
         'isProfilePrivate',
         'canOthersContact',
@@ -62,37 +185,50 @@ export default class UserService {
   }
 
   async editUser(
-    userId: number,
-    name: string,
-    email: string,
-    learningLanguageName: string,
-    level: string,
-    iPrivateProfile: boolean,
-    canOthersContact: boolean,
-    avatarFileName
+    userId?: number,
+    name?: string,
+    email?: string,
+    learningLanguageName?: string,
+    level?: string,
+    isPrivateProfile?: boolean,
+    canOthersContact?: boolean,
+    avatar?: string | null,
+    isCreator?: boolean
   ) {
     // check if learningLanguageId is valid
-    const learningLanguage = await db
-      .selectFrom('languages')
-      .select('id')
-      .where('languages.name', '=', learningLanguageName)
-      .executeTakeFirst()
-    if (!learningLanguage) {
-      throw new BadRequestException('Learning language not found')
+    let learningLanguageId: number | null = null
+    if (learningLanguageName) {
+      const learningLanguage = await db
+        .selectFrom('languages')
+        .select('id')
+        .where('languages.name', '=', learningLanguageName)
+        .executeTakeFirst()
+
+      if (!learningLanguage) {
+        throw new BadRequestException('Learning language not found')
+      }
+
+      learningLanguageId = learningLanguage.id
     }
-    const { id: learningLanguageId } = learningLanguage
 
     await db
       .updateTable('users')
       .where('id', '=', userId)
       .set({
-        name,
-        email,
-        learningLanguageId,
-        level,
-        isProfilePrivate: iPrivateProfile ? 1 : 0,
-        canOthersContact: canOthersContact ? 1 : 0,
-        ...(avatarFileName ? { avatar: avatarFileName } : {})
+        ...(name ? { name } : {}),
+        ...(email ? { email } : {}),
+        ...(learningLanguageId ? { learningLanguageId } : {}),
+        ...(level ? { level } : {}),
+        ...(isPrivateProfile
+          ? { isProfilePrivate: isPrivateProfile ? 1 : 0 }
+          : {}),
+        ...(canOthersContact
+          ? { canOthersContact: canOthersContact ? 1 : 0 }
+          : {}),
+        ...(isCreator ? { isCreator: isCreator ? 1 : 0 } : {}),
+        ...(avatar === null || typeof avatar === 'string'
+          ? { avatar: avatar }
+          : {})
       })
       .execute()
 

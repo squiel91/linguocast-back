@@ -1,7 +1,7 @@
 
 ALTER TABLE episodes ADD COLUMN transcript TEXT;
 
-CREATE TABLE embeddables (
+CREATE TABLE embeddeds (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   episodeId INTEGER NOT NULL,
   type VARCHAR(32) NOT NULL, -- image / note / link / episode

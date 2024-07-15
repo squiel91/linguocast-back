@@ -38,20 +38,20 @@ export class ExercisesController {
     )
   }
 
-  @Get('/exercises/:exerciseId')
-  viewExercise(
-    @UserIdOrNull() userId: number | null,
-    @Param('exerciseId') exerciseId: string
-  ) {
-    return this.exercisesService.viewExercise(userId, +exerciseId)
-  }
-
   @Get('/creators/exercises')
   listCreatorEpisodeExercises(
     @UserIdOrThrowUnauthorized() userId: number | null,
     @Query('episodeId') episodeId: string
   ) {
     return this.exercisesService.getCreatorEpisodeExercises(userId, +episodeId)
+  }
+
+  @Get('/creators/exercises/:exerciseId/responses')
+  listExerciseResponses(
+    @UserIdOrThrowUnauthorized() userId: number,
+    @Param('exerciseId') exerciseId: string
+  ) {
+    return this.exercisesService.listExerciseResponses(+exerciseId)
   }
 
   @Get('/exercises')

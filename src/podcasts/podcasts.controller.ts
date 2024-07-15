@@ -11,13 +11,19 @@ import {
   Param,
   HttpCode,
   Delete,
+  Patch,
   Query
 } from '@nestjs/common'
 import { PodcastsService } from './podcasts.service'
 
 import { promises as fs } from 'fs'
 import { AuthGuard } from 'src/auth/auth.guard'
-import { PodcastCreationDto } from './podcasts.validation'
+import {
+  PodcastCreationDto,
+  PodcastRssCreationDto,
+  PodcastSuggestionDto,
+  PodcastUpdateDto
+} from './podcasts.validation'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { diskStorage } from 'multer'
 import { extname, join } from 'path'
@@ -27,21 +33,31 @@ import {
   UserIdOrThrowUnauthorized
 } from 'src/auth/auth.decorators'
 
-@Controller('/api/podcasts')
+@Controller('/api')
 export class PodcastsController {
   constructor(private readonly podcastsService: PodcastsService) {}
 
-  @Get('/')
+  @Get('/podcasts')
   async findPodcasts() {
     return await this.podcastsService.getAllPodcasts()
   }
 
-  @Post('/rss')
-  async rssAutocomplete(@Body('rss') rss: string) {
-    return await this.podcastsService.rssAutocomplete(rss)
+  @Post('/creators/podcasts/rss')
+  async createPodcastFromRss(
+    @UserIdOrThrowUnauthorized() creatorId: number,
+    @Body() podcastRssCreationDto: PodcastRssCreationDto
+  ) {
+    console.log({ creatorId })
+    return await this.podcastsService.createPodcastFromRss(
+      creatorId,
+      podcastRssCreationDto.rss,
+      podcastRssCreationDto.targetLanguage,
+      podcastRssCreationDto.mediumLanguage,
+      podcastRssCreationDto.levels
+    )
   }
 
-  @Get('/:podcastId')
+  @Get('/podcasts/:podcastId')
   async getPodcast(
     @Param('podcastId') podcastId: number,
     @UserIdOrNull() userId: number | null
@@ -49,7 +65,15 @@ export class PodcastsController {
     return await this.podcastsService.getPodcastById(podcastId, userId)
   }
 
-  @Get('/:podcastId/episodes')
+  @Get('/creators/podcasts/:podcastId/metrics')
+  async getPodcastMetrics(
+    @UserIdOrThrowUnauthorized() userId: number,
+    @Param('podcastId') podcastId: number
+  ) {
+    return await this.podcastsService.getPodcastMetrics(userId, podcastId)
+  }
+
+  @Get('/podcasts/:podcastId/episodes')
   async getPodcastEpisodes(
     @UserIdOrNull() userId: number | null,
     @Param('podcastId') podcastId: number,
@@ -64,80 +88,116 @@ export class PodcastsController {
     )
   }
 
-  @Post('/')
+  @Post('/creators/podcasts/images')
+  @UseGuards(AuthGuard)
   @UseInterceptors(
-    FileInterceptor('coverImageFile', {
+    FileInterceptor('image', {
       storage: diskStorage({
-        destination: './public/dynamics/podcasts/covers',
+        destination: './public/dynamics/podcasts/images',
         filename: (req, file, cb) =>
-          cb(null, `${Date.now()}${extname(file.originalname)}`),
+          cb(null, `${Date.now()}${extname(file.originalname)}`)
       })
     })
   )
-  async createPodcast(
-    @UserIdOrThrowUnauthorized() userId: number,
-    @Body() createPodcastDto: PodcastCreationDto,
+  savePodcastImage(
     @UploadedFile(
       new ParseFilePipeBuilder()
-        .addFileTypeValidator({ fileType: /(jpg|jpeg|png|webp|svg)$/ })
+        .addFileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ })
         .addMaxSizeValidator({ maxSize: 1000 * 1024 * 3 }) // 3 mb
         .build({
-          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          fileIsRequired: false
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY
         })
     )
-    coverImageFile: Express.Multer.File | undefined
+    image: Express.Multer.File
   ) {
-    let coverImageName: string | null = null
-    if (createPodcastDto.coverImageUrl) {
-      const url = new URL(createPodcastDto.coverImageUrl)
-      const pathname = url.pathname
-      const lastUrlPart = pathname.split('/')
-      const extension = extname(lastUrlPart[lastUrlPart.length - 1])
-      coverImageName = `${Date.now()}${extension}`
-
-      const publicDir = join(
-        __dirname,
-        '..',
-        '..',
-        'public',
-        'dynamics',
-        'podcasts',
-        'covers'
-      )
-      const filePath = join(publicDir, coverImageName)
-
-      await fs.mkdir(publicDir, { recursive: true })
-      await saveImageFromUrl(createPodcastDto.coverImageUrl, filePath)
-    }
-
-    return await this.podcastsService.createPodcast({
-      name: createPodcastDto.name,
-      description: createPodcastDto.description,
-      coverImage: coverImageFile?.filename || coverImageName,
-      links: createPodcastDto.links,
-      levels: createPodcastDto.levels,
-      rss: createPodcastDto.rss,
-      targetLanguage: createPodcastDto.targetLanguage,
-      mediumLanguage: createPodcastDto.mediumLanguage,
-      episodeCount: createPodcastDto.episodeCount,
-      isActive: createPodcastDto.isActive ? 1 : 0,
-      since: createPodcastDto.since,
-      hasVideo: createPodcastDto.hasVideo ? 1 : 0,
-      avarageEpisodeMinutesDuration:
-        createPodcastDto.avarageEpisodeMinutesDuration,
-      hasTranscript: createPodcastDto.hasTranscript ? 1 : 0,
-      uploadedByUserId: userId
-    })
+    return `/dynamics/podcasts/images/${image.filename}`
   }
 
-  @Post('/:podcastId/update')
+  @Post('/creators/podcasts/suggestions')
+  async suggestPodcast(
+    @UserIdOrNull() userId: number,
+    @Body() podcastSuggestionDto: PodcastSuggestionDto
+  ) {
+    return await this.podcastsService.suggestPodcast(
+      userId,
+      podcastSuggestionDto.name,
+      podcastSuggestionDto.targetLanguage,
+      podcastSuggestionDto.mediumLanguage ?? null,
+      podcastSuggestionDto.rss ?? null,
+      podcastSuggestionDto.levels,
+      podcastSuggestionDto.links
+    )
+  }
+
+  @Post('/creators/podcasts')
+  async createPodcast(
+    @UserIdOrThrowUnauthorized() userId: number,
+    @Body() createPodcastDto: PodcastCreationDto
+  ) {
+    // let coverImageName: string | null = null
+    // if (createPodcastDto.coverImageUrl) {
+    //   const url = new URL(createPodcastDto.coverImageUrl)
+    //   const pathname = url.pathname
+    //   const lastUrlPart = pathname.split('/')
+    //   const extension = extname(lastUrlPart[lastUrlPart.length - 1])
+    //   coverImageName = `${Date.now()}${extension}`
+
+    //   const publicDir = join(
+    //     __dirname,
+    //     '..',
+    //     '..',
+    //     'public',
+    //     'dynamics',
+    //     'podcasts',
+    //     'covers'
+    //   )
+    //   const filePath = join(publicDir, coverImageName)
+
+    //   await fs.mkdir(publicDir, { recursive: true })
+    //   await saveImageFromUrl(createPodcastDto.coverImageUrl, filePath)
+    // }
+
+    return await this.podcastsService.createPodcast(
+      userId,
+      null,
+      createPodcastDto.name,
+      createPodcastDto.targetLanguage,
+      createPodcastDto.mediumLanguage,
+      createPodcastDto.description,
+      createPodcastDto.levels,
+      createPodcastDto.links,
+      createPodcastDto.image ?? null
+    )
+  }
+
+  @Patch('/creators/podcasts/:podcastId')
+  async updatePodcast(
+    @UserIdOrThrowUnauthorized() userId: number,
+    @Param('podcastId') podcastId: string,
+    @Body() createUpdateDto: PodcastUpdateDto
+  ) {
+    console.log({ rrrr: createUpdateDto.isListed })
+    await this.podcastsService.updatePodcast(
+      userId,
+      +podcastId,
+      createUpdateDto.name,
+      createUpdateDto.targetLanguage,
+      createUpdateDto.mediumLanguage,
+      createUpdateDto.description,
+      createUpdateDto.levels,
+      createUpdateDto.links,
+      createUpdateDto.image ?? null,
+      createUpdateDto.isListed
+    )
+  }
+
+  @Post('/podcasts/:podcastId/update')
   @HttpCode(HttpStatus.ACCEPTED)
   async updatePodcastFromRss(@Param('podcastId') podcastId: number) {
     await this.podcastsService.updatePodcastFromRss(podcastId)
   }
 
-  @Post('/:podcastId/saves')
+  @Post('/podcasts/:podcastId/saves')
   @HttpCode(HttpStatus.CREATED)
   async savePodcast(
     @UserIdOrThrowUnauthorized() userId: number,
@@ -146,12 +206,28 @@ export class PodcastsController {
     await this.podcastsService.savePodcast(userId, podcastId)
   }
 
-  @Delete('/:podcastId/saves')
+  @Delete('/podcasts/:podcastId/saves')
   @HttpCode(HttpStatus.CREATED)
   async removeSavedPodcast(
     @UserIdOrThrowUnauthorized() userId: number,
     @Param('podcastId') podcastId: number
   ) {
     await this.podcastsService.removeSavedPodcast(userId, podcastId)
+  }
+
+  @Get('/creators/podcasts/:podcastId/metrics')
+  async creatorsPodcastMetrics(
+    @UserIdOrThrowUnauthorized() creatorId: number,
+    @Param('podcastId') podcastId: number
+  ) {
+    await this.podcastsService.creatorsPodcastMetrics(creatorId, +podcastId)
+  }
+
+  @Delete('/creators/podcasts/:podcastId')
+  async deletePodcast(
+    @UserIdOrThrowUnauthorized() creatorId: number,
+    @Param('podcastId') podcastId: number
+  ) {
+    await this.podcastsService.deletePodcast(creatorId, +podcastId)
   }
 }

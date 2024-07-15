@@ -22,8 +22,12 @@ export class WordsController {
   constructor(private readonly wordsService: WordsService) {}
 
   @Get('/words')
-  searchWords(@Query() searchWordsDto: SearchWordsDto) {
+  searchWords(
+    @UserIdOrNull() userId: number | null,
+    @Query() searchWordsDto: SearchWordsDto
+  ) {
     return this.wordsService.searchWords(
+      userId,
       searchWordsDto.language,
       searchWordsDto.q
     )

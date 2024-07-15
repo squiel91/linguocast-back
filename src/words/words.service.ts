@@ -5,36 +5,31 @@ import {
   PreconditionFailedException
 } from '@nestjs/common'
 import { db } from 'src/db/connection.db'
-import { converToSimplfied, converToTraditional, convertNumericToTonalPinyin } from './words.utils'
+import {
+  converToSimplfied,
+  converToTraditional,
+  convertNumericToTonalPinyin
+} from './words.utils'
 import { daySinceEpoche } from 'src/utils/date.utils'
 import { Difficulty } from './words.constants'
 
 @Injectable()
 export class WordsService {
-  async searchWords(language: string, q: string) {
-    const matchingWords = await db
+  async searchWords(userId: number | null, language: string, q: string) {
+    const matchingWordsIds = await db
       .selectFrom('dictionary')
       .innerJoin('languages', 'dictionary.languageId', 'languages.id')
-      .select([
-        'dictionary.id',
-        'languages.name as language',
-        'dictionary.word',
-        'dictionary.pronunciation',
-        'dictionary.definitions as rawTranslations'
-      ])
+      .select('dictionary.id')
       .where('languages.name', '=', language)
       .where('word', '=', language === 'mandarin' ? converToTraditional(q) : q)
-      .limit(20)
+      .limit(4)
       .execute()
 
-    return matchingWords.map(({ rawTranslations, pronunciation, ...rest }) => ({
-      ...rest,
-      pronunciation:
-        language === 'mandarin'
-          ? convertNumericToTonalPinyin(pronunciation)
-          : pronunciation,
-      translations: JSON.parse(rawTranslations)
-    }))
+    const matchingWords = []
+    for (const { id: wordId } of matchingWordsIds) {
+      matchingWords.push(await this.viewWord(userId, wordId))
+    }
+    return matchingWords
   }
 
   async viewWord(userId: number | null, wordId: number) {
@@ -120,9 +115,26 @@ export class WordsService {
       .where('userWords.userId', '=', userId)
       .execute()
 
+    const measureWords = await db
+      .selectFrom('measureWords')
+      .innerJoin('dictionary', 'dictionary.id', 'measureWords.measureWordId')
+      .where(
+        'measureWords.wordId',
+        'in',
+        rawWords.map(({ id }) => id)
+      )
+      .select([
+        'measureWords.wordId as belongsTo',
+        'dictionary.id',
+        'dictionary.word',
+        'dictionary.pronunciation'
+      ])
+      .execute()
+
     return rawWords.map(
-      ({ word, rawTranslations, pronunciation, language, ...rest }) => ({
+      ({ id, word, rawTranslations, pronunciation, language, ...rest }) => ({
         ...rest,
+        id,
         word:
           learningLanguageId === 2 /* mandarin */ &&
           languageVariant === 'simplified'
@@ -133,7 +145,22 @@ export class WordsService {
           language === 'mandarin'
             ? convertNumericToTonalPinyin(pronunciation)
             : pronunciation,
-        translations: JSON.parse(rawTranslations)
+        translations: JSON.parse(rawTranslations),
+        measureWords: measureWords
+          .filter(({ belongsTo }) => belongsTo === id)
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          .map(({ id, word, pronunciation }) => ({
+            id,
+            word:
+              learningLanguageId === 2 /* mandarin */ &&
+              languageVariant === 'simplified'
+                ? converToSimplfied(word)
+                : word,
+            pronunciation:
+              language === 'mandarin'
+                ? convertNumericToTonalPinyin(pronunciation)
+                : pronunciation
+          }))
       })
     )
   }
@@ -164,9 +191,9 @@ export class WordsService {
       (
         await db
           .selectFrom('dailyActivity')
-          .select('dailyActivity.wordsAddedCount')
-          .where('dailyActivity.day', '=', currentDay)
-          .where('dailyActivity.userId', '=', userId)
+          .select('wordsAddedCount')
+          .where('day', '=', currentDay)
+          .where('userId', '=', userId)
           .executeTakeFirst()
       )?.wordsAddedCount ?? null
 
@@ -176,6 +203,8 @@ export class WordsService {
         .set({
           wordsAddedCount: prevAddedCount + 1
         })
+        .where('day', '=', currentDay)
+        .where('userId', '=', userId)
         .execute()
     } else {
       await db
@@ -226,6 +255,36 @@ export class WordsService {
       .where('userId', '=', userId)
       .where('wordId', '=', wordId)
       .execute()
+
+    const prevReviewCount: number | null =
+      (
+        await db
+          .selectFrom('dailyActivity')
+          .select('wordsReviewedCount')
+          .where('day', '=', currentDay)
+          .where('userId', '=', userId)
+          .executeTakeFirst()
+      )?.wordsReviewedCount ?? null
+
+    if (prevReviewCount) {
+      await db
+        .updateTable('dailyActivity')
+        .set({
+          wordsReviewedCount: prevReviewCount + 1
+        })
+        .where('day', '=', currentDay)
+        .where('userId', '=', userId)
+        .execute()
+    } else {
+      await db
+        .insertInto('dailyActivity')
+        .values({
+          userId,
+          day: currentDay,
+          wordsReviewedCount: 1
+        })
+        .execute()
+    }
   }
 
   async deleteUserWord(userId: number, wordId: number) {

@@ -5,8 +5,10 @@ import {
   IsEmail,
   IsOptional,
   IsBooleanString,
-  MinLength
+  MinLength,
+  IsBoolean
 } from 'class-validator'
+import { IsStringOrNull } from 'src/episodes/episodes.validations'
 
 
 export class AuthenticateUserDto {
@@ -20,27 +22,35 @@ export class AuthenticateUserDto {
 }
 
 export class UserUpdateDto {
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  name: string
+  name?: string
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsEmail()
-  email: string
+  email?: string
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  learning: string
+  learning?: string
+
+  @IsOptional()
+  @IsStringOrNull()
+  avatar?: string | null
 
   @IsOptional()
   @IsIn(['beginner', 'intermediate', 'upper-intermediate', 'advanced'])
-  level: string
+  level?: string
 
-  @IsNotEmpty()
-  @IsBooleanString()
-  isProfilePrivate: string
+  @IsOptional()
+  @IsBoolean()
+  isProfilePrivate?: boolean
 
-  @IsNotEmpty()
-  @IsBooleanString()
-  canOthersContact: string
+  @IsOptional()
+  @IsBoolean()
+  canOthersContact?: boolean
+
+  @IsOptional()
+  @IsBoolean()
+  isCreator?: boolean
 }

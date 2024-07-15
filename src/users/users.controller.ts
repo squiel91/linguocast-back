@@ -5,7 +5,8 @@ import {
   HttpCode,
   HttpStatus,
   Param,
-  Post
+  Post,
+  Query
 } from '@nestjs/common'
 import { UsersService } from './users.service'
 import { CreateUserDto } from './users.validation'
@@ -21,6 +22,11 @@ export const Cookies = createParamDecorator(
 @Controller('/api/users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
+
+  @Get('/')
+  async getUserName(@Query('email') email: string) {
+    return await this.usersService.getUserName(email)
+  }
 
   @Get('/:userId')
   async viewUser(@Param('userId') userId: number) {

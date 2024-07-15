@@ -4,6 +4,7 @@ import {
   FreeResponseExercise,
   MultipleChoiceExercise,
   RawBaseExercise,
+  RawCreatorExercise,
   RawExercise,
   SelectMultipleExercise
 } from './exercises.types'
@@ -98,7 +99,7 @@ export const rawExercisesToExercisesDto = (
 }
 
 export const rawBaseExercisesToCreatorExercisesDto = (
-  rawExercises: RawBaseExercise[]
+  rawExercises: RawCreatorExercise[]
 ) =>
   rawExercises.map(rawExercise => ({
     id: rawExercise.id,
@@ -106,6 +107,8 @@ export const rawBaseExercisesToCreatorExercisesDto = (
     ...JSON.parse(rawExercise.rawContent),
     start: rawExercise.start,
     duration: rawExercise.duration,
+    responsesCount: rawExercise.responsesCount,
+    correctCount: rawExercise.correctCount,
     updatedAt: rawExercise.updatedAt,
     createdAt: rawExercise.createdAt
   }))

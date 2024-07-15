@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpStatus,
+  Param,
   ParseFilePipeBuilder,
   Patch,
   Post,
@@ -15,10 +16,14 @@ import { AuthenticateUserDto, UserUpdateDto } from './user.validations'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { diskStorage } from 'multer'
 import { extname } from 'path'
+import { PodcastsService } from 'src/podcasts/podcasts.service'
 
 @Controller('/api/user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly podcastsService: PodcastsService
+  ) {}
 
   @Post('/authenticate')
   async authenticateUser(@Body() authenticateUserDto: AuthenticateUserDto) {
@@ -33,28 +38,33 @@ export class UserController {
     return this.userService.viewUser(userId)
   }
 
-  @Patch('/')
+  @Post('/avatars')
   @UseInterceptors(
-    FileInterceptor('avatarFile', {
+    FileInterceptor('image', {
       storage: diskStorage({
         destination: './public/dynamics/users/avatars',
         filename: (req, file, cb) =>
-          cb(null, `${Date.now()}${extname(file.originalname)}`),
+          cb(null, `${Date.now()}${extname(file.originalname)}`)
       })
     })
   )
-  updateUser(
-    @UserIdOrThrowUnauthorized() userId: number,
+  saveAvatarImage(
     @UploadedFile(
       new ParseFilePipeBuilder()
-        .addFileTypeValidator({ fileType: /(jpg|jpeg|png|webp|svg)$/ })
+        .addFileTypeValidator({ fileType: /(jpg|jpeg|png|webp)$/ })
         .addMaxSizeValidator({ maxSize: 1000 * 1024 * 3 }) // 3 mb
         .build({
-          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY,
-          fileIsRequired: false
+          errorHttpStatusCode: HttpStatus.UNPROCESSABLE_ENTITY
         })
     )
-    avatarFile: Express.Multer.File | undefined,
+    image: Express.Multer.File
+  ) {
+    return `/dynamics/users/avatars/${image.filename}`
+  }
+
+  @Patch('/')
+  updateUser(
+    @UserIdOrThrowUnauthorized() userId: number,
     @Body() userUpdateDto: UserUpdateDto
   ) {
     return this.userService.editUser(
@@ -63,15 +73,42 @@ export class UserController {
       userUpdateDto.email,
       userUpdateDto.learning,
       userUpdateDto.level,
-      userUpdateDto.isProfilePrivate === 'true' ? true : false,
-      userUpdateDto.canOthersContact === 'true' ? true : false,
-      avatarFile?.filename
+      userUpdateDto.isProfilePrivate,
+      userUpdateDto.canOthersContact,
+      userUpdateDto.avatar,
+      userUpdateDto.isCreator
     )
   }
 
   @Get('/feed')
   getUserFeed(@UserIdOrThrowUnauthorized() userId: number) {
     return this.userService.getUserFeed(userId)
+  }
+
+  @Get('/podcasts/:podcastId')
+  getUserPodcastById(
+    @UserIdOrThrowUnauthorized() userId: number,
+    @Param('podcastId') podcastId: number
+  ) {
+    return this.podcastsService.getUserPodcastsById(userId, podcastId)
+  }
+
+  @Get('/podcasts')
+  getUserPodcasts(@UserIdOrThrowUnauthorized() userId: number) {
+    return this.podcastsService.getUserPodcasts(userId)
+  }
+
+  @Get('/podcasts/:podcastId/episodes')
+  getUserEpisodes(
+    @UserIdOrThrowUnauthorized() userId: number,
+    @Param('podcastId') podcastId: number
+  ) {
+    return this.podcastsService.getUserPodcastEpisodes(userId, podcastId)
+  }
+
+  @Get('/journey')
+  getUserLearningJourney(@UserIdOrThrowUnauthorized() userId: number) {
+    return this.userService.getUserLearningJourney(userId)
   }
 
   @Get('/podcast-subscriptions')

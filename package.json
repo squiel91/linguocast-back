@@ -36,6 +36,8 @@
     "class-validator": "^0.14.1",
     "cookie-parser": "^1.4.6",
     "cron": "^3.1.7",
+    "discord.js": "^14.15.3",
+    "get-audio-duration": "^4.0.1",
     "jsonwebtoken": "^9.0.2",
     "kysely": "^0.27.3",
     "openai": "^4.49.1",
