@@ -5,7 +5,8 @@ import { extname } from 'path'
 @Injectable()
 export class AutomationsService {
   async generateAutomaticTranscript(audioUrl: string) {
-    if (extname(audioUrl) !== '.mp3')
+    console.log({ audioUrl })
+    if (!extname(audioUrl).startsWith('.mp3'))
       throw new BadRequestException('Only mp3 format supported.')
     const transcript = await transcribe(audioUrl)
     return transcript.words

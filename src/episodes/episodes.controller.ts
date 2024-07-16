@@ -148,18 +148,12 @@ export class EpisodesController {
     )
   }
 
-  @Patch('/episodes/:episodeId/transcript') // deprecated
-  async updateEpisodeTranscript(
+  @Patch('/creators/episodes/:episodeId/transcript/autogenerate')
+  async autogenerateTranscript(
     @UserIdOrThrowUnauthorized() _,
-    @Param('episodeId') episodeId: number,
-    @Body('autogenerate') autogenerate?: boolean,
-    @Body('transcript') transcript?: string
+    @Param('episodeId') episodeId: number
   ) {
-    return this.episodesService.updateTranscript(
-      episodeId,
-      autogenerate ?? false,
-      transcript
-    )
+    return this.episodesService.autogenerateTranscript(episodeId)
   }
 
   @Post('/episodes/:episodeId/generate-exercises')

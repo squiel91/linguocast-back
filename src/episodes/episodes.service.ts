@@ -158,23 +158,14 @@ export class EpisodesService {
       .execute()
   }
 
-  async updateTranscript(
-    episodeId: number,
-    autogenerate: boolean,
-    transcript?: string
-  ) {
-    let newTranscript: string
-    if (!transcript && autogenerate) {
-      newTranscript = await this.automationsService.generateAutomaticTranscript(
+  async autogenerateTranscript(episodeId: number) {
+    const newTranscript =
+      await this.automationsService.generateAutomaticTranscript(
         await this.getEpisodeAudioUrl(episodeId)
       )
-      if (!newTranscript)
-        throw new InternalServerErrorException(
-          'Could not auto-generate the transcription.'
-        )
-    } else {
-      newTranscript = transcript
-    }
+    if (!newTranscript) throw new InternalServerErrorException(
+      'Could not auto-generate the transcription.'
+    )
     await db
       .updateTable('episodes')
       .set({ transcript: newTranscript })

@@ -13,13 +13,13 @@ export class NotificationsService implements OnModuleInit {
   private readonly token = process.env.NOTIFICATIONS_DISCORD_BOT_TOKEN
 
   constructor() {
-    this.client = new Client({
-      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
-    })
+    // this.client = new Client({
+    //   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
+    // })
   }
 
   async onModuleInit() {
-    await this.client.login(this.token)
+    // await this.client.login(this.token)
   }
 
   async sendNotification(

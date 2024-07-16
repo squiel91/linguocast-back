@@ -28,13 +28,13 @@ export const transcribe = async (
       apiKey: process.env.ASSAMBLY_AI_API_KEY
     })
     console.log(`Auto-generating transcript for ${audioUrl}...`)
-    const response = await client.transcripts.create({
+    transcriptionResponse = await client.transcripts.create({
       audio_url: audioUrl,
       language_code: 'zh', // TODO: adjust the language to the episode
       speech_model: 'best'
     })
     console.log(`Auto-generating completed.`)
-    if (shouldCache) await storeTranscriptCache(audioUrl, response)
+    if (shouldCache) await storeTranscriptCache(audioUrl, transcriptionResponse)
   }
 
   return transcriptionResponse
