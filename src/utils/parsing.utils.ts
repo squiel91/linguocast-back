@@ -17,7 +17,7 @@ export const parsePodcastRss = async (
 ) => {
   try {
     const lastModified = options.lastModified || null
-    const eTag = options.eTag || null 
+    const eTag = options.eTag || null
 
     const { headers, data: rssFeedXml } = await axios.get(rssUrl, {
       headers: {

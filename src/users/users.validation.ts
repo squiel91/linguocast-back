@@ -1,19 +1,27 @@
-import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator'
+import { IsStringOrNull } from 'src/episodes/episodes.validations'
 
 export class CreateUserDto {
   @IsNotEmpty()
   @IsString()
-  name: string;
+  name: string
 
   @IsEmail()
-  email: string;
+  email: string
 
   @IsNotEmpty()
   @IsString()
-  learning: string;
+  learning: string
+
+  @IsNotEmpty()
+  @IsString()
+  level: string
+
+  @IsStringOrNull()
+  variant: string
 
   @IsNotEmpty()
   @IsString()
   @MinLength(6)
-  password: string;
+  password: string
 }

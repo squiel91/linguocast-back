@@ -47,7 +47,6 @@ export class PodcastsController {
     @UserIdOrThrowUnauthorized() creatorId: number,
     @Body() podcastRssCreationDto: PodcastRssCreationDto
   ) {
-    console.log({ creatorId })
     return await this.podcastsService.createPodcastFromRss(
       creatorId,
       podcastRssCreationDto.rss,
@@ -176,7 +175,6 @@ export class PodcastsController {
     @Param('podcastId') podcastId: string,
     @Body() createUpdateDto: PodcastUpdateDto
   ) {
-    console.log({ rrrr: createUpdateDto.isListed })
     await this.podcastsService.updatePodcast(
       userId,
       +podcastId,

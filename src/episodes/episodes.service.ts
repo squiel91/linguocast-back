@@ -133,7 +133,6 @@ export class EpisodesService {
     if (creatorId !== userId)
       throw new ForbiddenException('Only the creator an update the episode')
 
-    console.log({ title, description })
     await db
       .updateTable('episodes')
       .set({

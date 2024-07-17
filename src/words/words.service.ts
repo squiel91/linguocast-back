@@ -266,7 +266,7 @@ export class WordsService {
           .executeTakeFirst()
       )?.wordsReviewedCount ?? null
 
-    if (prevReviewCount) {
+    if (prevReviewCount !== null) {
       await db
         .updateTable('dailyActivity')
         .set({

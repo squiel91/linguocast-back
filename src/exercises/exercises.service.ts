@@ -76,7 +76,6 @@ export class ExercisesService {
           ).content
         ) as Exercise
 
-        console.log({ exercise })
         if (
           exercise.type === 'multiple-choice' ||
           exercise.type === 'select-multiple'
@@ -92,7 +91,6 @@ export class ExercisesService {
             processedResponse = shuffledOptions[processedResponse as number]
           }
           if (exercise.type === 'select-multiple') {
-            console.log({ processedResponse })
             processedResponse = (processedResponse as number[]).map(
               responseIndex => shuffledOptions[responseIndex]
             )

@@ -178,6 +178,7 @@ export default class UserService {
         'isProfilePrivate',
         'canOthersContact',
         'languages.name as learning',
+        'users.languageVariant as variant',
         'level'
       ])
       .where('users.id', '=', userId)
@@ -189,6 +190,7 @@ export default class UserService {
     name?: string,
     email?: string,
     learningLanguageName?: string,
+    variant?: string | null,
     level?: string,
     isPrivateProfile?: boolean,
     canOthersContact?: boolean,
@@ -218,6 +220,9 @@ export default class UserService {
         ...(name ? { name } : {}),
         ...(email ? { email } : {}),
         ...(learningLanguageId ? { learningLanguageId } : {}),
+        ...(variant === null || typeof variant === 'string'
+          ? { languageVariant: variant }
+          : {}),
         ...(level ? { level } : {}),
         ...(isPrivateProfile
           ? { isProfilePrivate: isPrivateProfile ? 1 : 0 }
@@ -260,18 +265,18 @@ export default class UserService {
       .selectFrom('savedPodcasts')
       .innerJoin('podcasts', 'savedPodcasts.podcastId', 'podcasts.id')
       .innerJoin('episodes', 'episodes.podcastId', 'podcasts.id')
-      .leftJoin(
-        db
-          .selectFrom('reproductions')
-          .select(['episodeId', 'completedAt', 'leftOn'])
-          .where('reproductions.userId', '=', userId)
-          .as('userReproductions'),
-        'userReproductions.episodeId',
-        'episodes.id'
-      )
+      // .leftJoin(
+      //   db
+      //     .selectFrom('reproductions')
+      //     .select(['episodeId', 'completedAt', 'leftOn'])
+      //     .where('reproductions.userId', '=', userId)
+      //     .as('userReproductions'),
+      //   'userReproductions.episodeId',
+      //   'episodes.id'
+      // )
       .where('savedPodcasts.userId', '=', userId)
-      .where('userReproductions.completedAt', 'is', null)
-      .where('userReproductions.leftOn', 'is', null)
+      // .where('userReproductions.completedAt', 'is', null)
+      // .where('userReproductions.leftOn', 'is', null)
       .select([
         'episodes.id',
         'episodes.title',

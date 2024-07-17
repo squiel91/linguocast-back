@@ -4,12 +4,10 @@ import {
   IsIn,
   IsEmail,
   IsOptional,
-  IsBooleanString,
   MinLength,
   IsBoolean
 } from 'class-validator'
 import { IsStringOrNull } from 'src/episodes/episodes.validations'
-
 
 export class AuthenticateUserDto {
   @IsEmail()
@@ -33,6 +31,10 @@ export class UserUpdateDto {
   @IsOptional()
   @IsString()
   learning?: string
+
+  @IsOptional()
+  @IsStringOrNull()
+  variant?: string | null
 
   @IsOptional()
   @IsStringOrNull()

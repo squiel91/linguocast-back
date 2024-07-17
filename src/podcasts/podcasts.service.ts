@@ -96,7 +96,6 @@ export class PodcastsService {
   }
 
   async getUserPodcastEpisodes(userId: number, podcastId: number) {
-    console.log({ userId, podcastId })
     const userEpisodes = await db
       .selectFrom('episodes')
       .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
@@ -188,7 +187,6 @@ export class PodcastsService {
   }
 
   async getUserPodcastsById(userId: number, podcastId: number) {
-    console.log({ userId, podcastId })
     const rawPodcast = await db
       .selectFrom('podcasts')
       .select([
@@ -338,7 +336,6 @@ export class PodcastsService {
       ).id
     }
 
-    console.log({ isListed })
     await db
       .updateTable('podcasts')
       .set({

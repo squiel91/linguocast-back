@@ -47,6 +47,8 @@ export class UsersService {
     rawEmail: string,
     name: string,
     learning: string,
+    variant: string | null,
+    level: string,
     password: string
   ) {
     const email = rawEmail.trim().toLowerCase()
@@ -80,6 +82,8 @@ export class UsersService {
           email,
           name,
           learningLanguageId: languageId,
+          languageVariant: variant,
+          level,
           password: paswordHash
         })
         .returning('id')

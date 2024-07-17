@@ -72,6 +72,7 @@ export class UserController {
       userUpdateDto.name,
       userUpdateDto.email,
       userUpdateDto.learning,
+      userUpdateDto.variant,
       userUpdateDto.level,
       userUpdateDto.isProfilePrivate,
       userUpdateDto.canOthersContact,

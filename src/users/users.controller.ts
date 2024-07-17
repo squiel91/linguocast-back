@@ -40,6 +40,8 @@ export class UsersController {
       createUserDto.email,
       createUserDto.name,
       createUserDto.learning,
+      createUserDto.variant,
+      createUserDto.level,
       createUserDto.password
     )
   }
