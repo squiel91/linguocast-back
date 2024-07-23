@@ -6,15 +6,15 @@ import {
   NotFoundException
 } from '@nestjs/common'
 import { db } from 'src/db/connection.db'
-import { NewPodcast } from 'src/db/schema.db'
 import { rawMinifiedPodcastsToMinifiedPodcastDtos } from './podcasts.mapper'
 
 import { parsePodcastRss } from 'src/utils/parsing.utils'
 import { EpisodesService } from 'src/episodes/episodes.service'
 import { Cron, CronExpression } from '@nestjs/schedule'
-import { Episode } from 'podcast-partytime'
-import { linkSync } from 'fs'
-import { NotificationChannels, NotificationsService } from 'src/notifications/notifications.service'
+import {
+  NotificationChannels,
+  NotificationsService
+} from 'src/notifications/notifications.service'
 
 @Injectable()
 export class PodcastsService {
@@ -70,7 +70,7 @@ export class PodcastsService {
         )
       ])
       .where('isDeleted', '=', 0)
-      .where('isListed', '=', 1 )
+      .where('isListed', '=', 1)
       .groupBy('podcasts.id')
       .orderBy('podcasts.id', 'desc')
       .execute()
@@ -555,7 +555,7 @@ export class PodcastsService {
 
     return episodes.map(episode => ({
       ...episode,
-      belongsTo: microPodcast
+      podcast: microPodcast
     }))
   }
 
@@ -580,9 +580,8 @@ export class PodcastsService {
         mediumLanguage,
         description,
         levels,
-        [],
+        link ? [link] : [],
         image?.url ?? null,
-        episodes,
         eTag ?? null,
         lastModified ?? null
       )
@@ -628,10 +627,10 @@ export class PodcastsService {
     levels: string[],
     links: string[],
     image?: string | null,
-    episodes?: Episode[],
     eTag?: string,
     lastModified?: string
   ) {
+    console.log({ innerImage: image })
     const targetLanguageId = (
       await db
         .selectFrom('languages')
@@ -670,10 +669,6 @@ export class PodcastsService {
         .returning('id')
         .executeTakeFirstOrThrow()
     ).id
-
-    if (episodes && episodes.length > 0) {
-      await this.episodesService.createEpisodesFromFeed(episodes, podcastId)
-    }
 
     await this.notificationsService.sendNotification(
       NotificationChannels.CREATED_PODCAST,

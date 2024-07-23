@@ -184,7 +184,7 @@ export class PodcastsController {
       createUpdateDto.description,
       createUpdateDto.levels,
       createUpdateDto.links,
-      createUpdateDto.image ?? null,
+      createUpdateDto.image,
       createUpdateDto.isListed
     )
   }

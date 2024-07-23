@@ -21,7 +21,7 @@ export const getFreeResponseExercisesCorrection = async (
         content: `You are a language teacher. Correct the following ${level.toUpperCase()} ${language} learner's response to the question:
 "${question}"
 
-The expected response is:
+The expected response, in a broad sense, is:
 "${responseModel}"
 
 Provide your corrections in a valid JSON format without any extra comments or code formatting:
@@ -30,8 +30,8 @@ Provide your corrections in a valid JSON format without any extra comments or co
     "feedback": string
 }
 
-- isCorrect: true if the response mostly addresses the model answer despite minor errors. False if there are major grammar issues or it doesn't address the main part.
-- feedback: Briefly explain why the response is correct or how it can be improved. Give feedback in ${language}.`
+- isCorrect: true if the response somehow addresses the model answer despite some errors, be permissive, not to strict. It should be false if there are major grammar issues or it doesn't address the main part.
+- feedback: Briefly explain why the response is correct or how it can be improved. Give feedback in ${language} language.`
       },
       { role: 'user', content: [{ type: 'text', text: userResponse }] }
     ],
@@ -88,7 +88,7 @@ export const generateExercises = async ({
         role: 'system',
         content: `This is a Chinese learning podcast episode's automatically generated transcript (it might contain a few character errors).
 
-Generate 6 exercises in JSON format, using similar vocabulary and level as the podcast.
+Generate 5 exercises in JSON format, using similar vocabulary and level as the podcast.
 Try to evaluate the main episode takeaways and what is mentioned related to the main topic.  
 The format should be:
 
@@ -109,7 +109,7 @@ The format should be:
     "type": "free-response",
     "question": "QUESTION IN CHINESE",
     "response": "MODEL RESPONSE IN CHINESE"
-  } (2 of this type)
+  } (1 of this type)
 ]
 
 The response should be a valid JSON list with no comments or code formatting.`

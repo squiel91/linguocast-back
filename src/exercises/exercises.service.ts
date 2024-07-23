@@ -293,19 +293,24 @@ export class ExercisesService {
         }
 
         const selectMultipleShuffledOptions = shufflePositions(
-          selectMultipleExercise.id,
+          exerciseId,
           selectMultipleExercise.correctChoices.length +
             selectMultipleExercise.incorrectChoices.length
         )
+
+        console.log({ selectMultipleShuffledOptions })
+
         if (
           selectMultipleExercise.correctChoices.length ===
             userResponse.length &&
           // means that it is exactely the same because was validated that does not repeat
-          userResponse.every(
-            index =>
-              selectMultipleShuffledOptions[index] <
-              selectMultipleExercise.correctChoices.length
-          )
+          selectMultipleExercise.correctChoices
+            .map((_, index) => index)
+            .every(index =>
+              userResponse
+                .map(index => selectMultipleShuffledOptions[index])
+                .includes(index)
+            )
         ) {
           score = 1
         } else {

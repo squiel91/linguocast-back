@@ -3,7 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   InternalServerErrorException,
-  NotFoundException,
+  NotFoundException
 } from '@nestjs/common'
 import { db } from 'src/db/connection.db'
 import { sql } from 'kysely'
@@ -162,9 +162,10 @@ export class EpisodesService {
       await this.automationsService.generateAutomaticTranscript(
         await this.getEpisodeAudioUrl(episodeId)
       )
-    if (!newTranscript) throw new InternalServerErrorException(
-      'Could not auto-generate the transcription.'
-    )
+    if (!newTranscript)
+      throw new InternalServerErrorException(
+        'Could not auto-generate the transcription.'
+      )
     await db
       .updateTable('episodes')
       .set({ transcript: newTranscript })
@@ -262,9 +263,9 @@ export class EpisodesService {
         .executeTakeFirstOrThrow()
     }
 
-    const userLanguage = await db
+    const user = await db
       .selectFrom('users')
-      .select(['learningLanguageId', 'languageVariant'])
+      .select(['isPremium', 'learningLanguageId', 'languageVariant'])
       .where('id', '=', userId)
       .executeTakeFirst()
 
@@ -288,9 +289,14 @@ export class EpisodesService {
     const { title, description, transcript, ...episodeRest } = episode
     return {
       ...episodeRest,
-      title: convertIfChinese(userLanguage, title),
-      description: convertIfChinese(userLanguage, description),
-      transcript: convertIfChinese(userLanguage, transcript),
+      title: convertIfChinese(user, title),
+      description: convertIfChinese(user, description),
+      transcript: convertIfChinese(
+        user,
+        user?.isPremium ?? false
+          ? transcript // for premium users it send the complete transcript
+          : transcript?.slice(0, Math.ceil((transcript?.length ?? 0) / 2))
+      ),
       podcast
     }
   }
