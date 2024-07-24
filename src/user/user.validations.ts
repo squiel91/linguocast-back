@@ -50,6 +50,10 @@ export class UserUpdateDto {
 
   @IsOptional()
   @IsBoolean()
+  isPremium?: boolean
+
+  @IsOptional()
+  @IsBoolean()
   canOthersContact?: boolean
 
   @IsOptional()

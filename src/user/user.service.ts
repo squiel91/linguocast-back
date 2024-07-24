@@ -193,6 +193,7 @@ export default class UserService {
     variant?: string | null,
     level?: string,
     isPrivateProfile?: boolean,
+    isPremium?: boolean,
     canOthersContact?: boolean,
     avatar?: string | null,
     isCreator?: boolean
@@ -227,6 +228,7 @@ export default class UserService {
         ...(isPrivateProfile
           ? { isProfilePrivate: isPrivateProfile ? 1 : 0 }
           : {}),
+        ...(isPremium ? { isPremium: isPremium ? 1 : 0 } : {}),
         ...(canOthersContact
           ? { canOthersContact: canOthersContact ? 1 : 0 }
           : {}),

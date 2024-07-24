@@ -7,4 +7,5 @@ export interface RawMinifiedPodcast {
   targetLanguage: string
   rawLevels: string
   savedCount: number
+  episodesCount: number
 }

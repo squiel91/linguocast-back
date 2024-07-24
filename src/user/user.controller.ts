@@ -75,6 +75,7 @@ export class UserController {
       userUpdateDto.variant,
       userUpdateDto.level,
       userUpdateDto.isProfilePrivate,
+      userUpdateDto.isPremium,
       userUpdateDto.canOthersContact,
       userUpdateDto.avatar,
       userUpdateDto.isCreator

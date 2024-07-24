@@ -11,7 +11,7 @@ export const getFreeResponseExercisesCorrection = async (
   userResponse: string,
   language: string,
   level: Level,
-  model = 'gpt-4o'
+  model = 'gpt-4o-mini'
 ) => {
   const response = await openai.chat.completions.create({
     model,
@@ -59,13 +59,13 @@ Provide your corrections in a valid JSON format without any extra comments or co
 
 interface Props {
   transcript: string
-  model?: 'gpt-3.5-turbo-0125' | 'gpt-4o'
+  model?: 'gpt-3.5-turbo-0125' | 'gpt-4o' | 'gpt-4o-mini'
   quantity?: number
 }
 
 export const generateExercises = async ({
   transcript: rawTimeAnnotatedTranscript,
-  model = 'gpt-4o'
+  model = 'gpt-4o-mini'
 }: Props) => {
   if (!rawTimeAnnotatedTranscript)
     throw new UnprocessableEntityException(

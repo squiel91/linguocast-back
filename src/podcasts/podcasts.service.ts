@@ -53,6 +53,20 @@ export class PodcastsService {
         'podcasts.id',
         'givenPodcastComments.resourceId'
       )
+      .leftJoin(
+        db
+          .selectFrom('episodes')
+          .select(({ fn, val }) => [
+            'podcastId',
+            fn<number>('IFNULL', [fn<number>('COUNT', ['id']), val(0)]).as(
+              'episodesCount'
+            )
+          ])
+          .groupBy('podcastId')
+          .as('podcastsEpisodesCount'),
+        'podcastsEpisodesCount.podcastId',
+        'podcasts.id'
+      )
       .select(({ fn, val }) => [
         'podcasts.id',
         'podcasts.name',
@@ -67,7 +81,8 @@ export class PodcastsService {
         ),
         fn<number>('COUNT', [fn('DISTINCT', ['givenPodcastComments.id'])]).as(
           'commentsCount'
-        )
+        ),
+        'podcastsEpisodesCount.episodesCount'
       ])
       .where('isDeleted', '=', 0)
       .where('isListed', '=', 1)
