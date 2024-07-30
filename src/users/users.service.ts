@@ -1,12 +1,19 @@
-import { ConflictException, Injectable } from '@nestjs/common'
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { db } from 'src/db/connection.db'
 import { hash } from 'bcrypt'
 import { generateAuthToken } from 'src/utils/auth.utils'
 import UserService from 'src/user/user.service'
+import {
+  NotificationChannels,
+  NotificationsService
+} from 'src/notifications/notifications.service'
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly userService: UserService
+) {}
 
   async getUserName(email: string) {
     return await db
@@ -17,7 +24,7 @@ export class UsersService {
   }
 
   async viewUser(userId: number) {
-    const userInfo = await db
+    const user = await db
       .selectFrom('users')
       .leftJoin('languages', 'users.learningLanguageId', 'languages.id')
       .select([
@@ -31,17 +38,21 @@ export class UsersService {
         'level'
       ])
       .where('users.id', '=', userId)
-      .executeTakeFirstOrThrow()
+      .executeTakeFirst()
 
-    if (userInfo.isProfilePrivate) {
+    if (!user) {
+      throw new NotFoundException('The user you are looking does not exist.')
+    }
+
+    if (user.isProfilePrivate) {
       return {
-        id: userInfo.id,
-        name: userInfo.name,
-        avatar: userInfo.avatar,
-        isProfilePrivate: userInfo.isProfilePrivate,
+        id: user.id,
+        name: user.name,
+        avatar: user.avatar,
+        isProfilePrivate: user.isProfilePrivate,
       }
     }
-    return userInfo
+    return user
   }
   async createUser(
     rawEmail: string,
@@ -49,7 +60,8 @@ export class UsersService {
     learning: string,
     variant: string | null,
     level: string,
-    password: string
+    password: string,
+    isCreator: boolean
   ) {
     const email = rawEmail.trim().toLowerCase()
 
@@ -74,7 +86,6 @@ export class UsersService {
     const saltOrRounds = 10
     const paswordHash = await hash(password, saltOrRounds)
 
-
     const userId = (
       await db
         .insertInto('users')
@@ -84,11 +95,26 @@ export class UsersService {
           learningLanguageId: languageId,
           languageVariant: variant,
           level,
-          password: paswordHash
+          password: paswordHash,
+          isCreator: isCreator ? 1 : 0
         })
         .returning('id')
         .executeTakeFirstOrThrow()
     ).id
+
+    // Notifications
+    if (isCreator) {
+      this.notificationsService.sendNotification(
+        NotificationChannels.CREATOR_SIGNUP,
+        `[${name}](https://linguocast.com/users/${userId}) (${email}) just signed-up for ${learning + (variant ? '/' + variant : '')}`
+      )
+    } else {
+      this.notificationsService.sendNotification(
+        NotificationChannels.LEARNER_SIGNUP,
+        `[${name}](https://linguocast.com/users/${userId}) (${email}) just signed-up for ${level} ${learning + (variant ? '/' + variant : '')}`
+      )
+    }
+
     return {
       user: await this.userService.viewUser(userId),
       token: generateAuthToken(userId)

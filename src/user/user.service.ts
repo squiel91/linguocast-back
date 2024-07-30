@@ -9,9 +9,15 @@ import { generateAuthToken } from 'src/utils/auth.utils'
 import { daySinceEpoche } from 'src/utils/date.utils'
 import { DailyActivity } from './user.types'
 import { sql } from 'kysely'
+import {
+  NotificationChannels,
+  NotificationsService
+} from 'src/notifications/notifications.service'
 
 @Injectable()
 export default class UserService {
+  constructor(private readonly notificationsService: NotificationsService) {}
+
   async authenticateUser(rawEmail: string, password: string) {
     const email = rawEmail.trim().toLowerCase()
 
@@ -182,7 +188,7 @@ export default class UserService {
         'level'
       ])
       .where('users.id', '=', userId)
-      .executeTakeFirstOrThrow()
+      .executeTakeFirst()
   }
 
   async editUser(
@@ -238,6 +244,20 @@ export default class UserService {
           : {})
       })
       .execute()
+
+    // Notifications
+    if (isPremium) {
+      this.notificationsService.sendNotification(
+        NotificationChannels.PREMIUM_PURCHASED,
+        `The [user with Id ${userId}](https://linguocast.com/users/${userId}) just purchased a premium membership.`
+      )
+    }
+    if (isCreator) {
+      this.notificationsService.sendNotification(
+        NotificationChannels.CREATOR_ACTIVATED,
+        `The [user with Id ${userId}](https://linguocast.com/users/${userId}) just activated Creator mode.`
+      )
+    }
 
     return await this.viewUser(userId)
   }

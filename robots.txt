@@ -1,0 +1,8 @@
+User-agent: *
+Disallow: /creators/*/
+Disallow: /profile
+
+Allow: /creators
+Allow: /
+
+Sitemap: https://linguocast.com/sitemap.xml

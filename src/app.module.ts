@@ -12,6 +12,7 @@ import { ExercisesModule } from './exercises/exercises.module'
 import { EmbeddedsModule } from './embededds/embeddeds.module'
 import { AppController } from './app.controller'
 import { WordsModule } from './words/words.module'
+import { AppService } from './app.service'
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { WordsModule } from './words/words.module'
       exclude: ['/api', '/dynamics']
     })
   ],
-  controllers: [AppController]
+  controllers: [AppController],
+  providers: [AppService]
 })
 export class AppModule {}
