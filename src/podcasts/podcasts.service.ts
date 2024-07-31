@@ -110,97 +110,6 @@ export class PodcastsService {
     )
   }
 
-  async getUserPodcastEpisodes(userId: number, podcastId: number) {
-    const userEpisodes = await db
-      .selectFrom('episodes')
-      .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
-      .leftJoin(
-        db
-          .selectFrom('reproductions')
-          .select(({ fn }) => [
-            fn<number>('COUNT', ['reproductions.userId']).as('count'),
-            'reproductions.episodeId'
-          ])
-          .groupBy('reproductions.episodeId')
-          .as('episodeReproductionsCount'),
-        'episodes.id',
-        'episodeReproductionsCount.episodeId'
-      )
-      .leftJoin(
-        db
-          .selectFrom('comments')
-          .select(({ fn }) => [
-            fn<number>('COUNT', ['comments.id']).as('count'),
-            'comments.resourceId'
-          ])
-          .where('comments.resourceType', '=', 'episode')
-          .groupBy('comments.resourceId')
-          .as('episodeCommentsCount'),
-        'episodes.id',
-        'episodeCommentsCount.resourceId'
-      )
-      .leftJoin(
-        db
-          .selectFrom('embeddeds')
-          .select(({ fn }) => [
-            fn<number>('COUNT', ['embeddeds.id']).as('count'),
-            'embeddeds.episodeId'
-          ])
-          .groupBy('embeddeds.episodeId')
-          .as('episodeEmbeddedsCount'),
-        'episodes.id',
-        'episodeEmbeddedsCount.episodeId'
-      )
-      .leftJoin(
-        db
-          .selectFrom('exercises')
-          .select(({ fn }) => [
-            fn<number>('COUNT', ['exercises.id']).as('count'),
-            'exercises.episodeId'
-          ])
-          .groupBy('exercises.episodeId')
-          .as('episodeExercisesCount'),
-        'episodes.id',
-        'episodeExercisesCount.episodeId'
-      )
-      .select(({ fn, val }) => [
-        'episodes.id',
-        'episodes.podcastId',
-        'podcasts.name as podcastName',
-        'podcasts.coverImage as podcastImage',
-        'episodes.title',
-        fn<number>('IFNULL', ['episodeReproductionsCount.count', val(0)]).as(
-          'reproductionsCount'
-        ),
-        fn<number>('IFNULL', ['episodeCommentsCount.count', val(0)]).as(
-          'commentsCount'
-        ),
-        fn<number>('IFNULL', ['episodeEmbeddedsCount.count', val(0)]).as(
-          'embeddedCount'
-        ),
-        fn<number>('IFNULL', ['episodeExercisesCount.count', val(0)]).as(
-          'exercisesCount'
-        ),
-        'episodes.image',
-        'episodes.publishedAt',
-        'episodes.duration',
-        'episodes.description',
-        'episodes.transcript',
-        'episodes.contentUrl',
-        'episodes.isListed',
-        'episodes.createdAt',
-        'episodes.updatedAt'
-      ])
-      .where('podcasts.byUserId', '=', +userId)
-      .where('podcasts.id', '=', +podcastId)
-      .where('episodes.isDeleted', '=', 0)
-      .orderBy('episodes.id', 'desc')
-      .limit(10)
-      .execute()
-
-    return userEpisodes
-  }
-
   async getUserPodcastsById(userId: number, podcastId: number) {
     const rawPodcast = await db
       .selectFrom('podcasts')
@@ -587,7 +496,8 @@ export class PodcastsService {
         eTag,
         lastModified
       } = await parsePodcastRss(rss)
-      const { id: createdPodcastId } = await this.createPodcast(
+
+      const { id: podcastId } = await this.createPodcast(
         creatorId,
         rss,
         name,
@@ -600,15 +510,23 @@ export class PodcastsService {
         eTag ?? null,
         lastModified ?? null
       )
-      await this.episodesService.createEpisodesFromFeed(
-        episodes,
-        createdPodcastId
+      await this.episodesService.createEpisodesFromFeed(episodes, podcastId)
+
+      await this.notificationsService.sendNotification(
+        NotificationChannels.CREATED_PODCAST,
+        `**New ${targetLanguage} podcast [${name}](https://linguocast.com/creators/podcasts/${podcastId}/overview)** with ${episodes.length} new episode(s) from RSS Feed`
       )
-      return { id: createdPodcastId }
+
+      return { id: podcastId }
     } catch (error) {
       console.error(error)
       throw new BadRequestException()
     }
+  }
+
+  // TODO: what is this for?
+  async creatorsPodcastMetrics(userId: number, podcastId: number) {
+    //
   }
 
   async suggestPodcast(
@@ -645,7 +563,6 @@ export class PodcastsService {
     eTag?: string,
     lastModified?: string
   ) {
-    console.log({ innerImage: image })
     const targetLanguageId = (
       await db
         .selectFrom('languages')
@@ -706,10 +623,6 @@ export class PodcastsService {
         .insertInto('savedPodcasts')
         .values({ userId, podcastId })
         .execute()
-  }
-
-  async creatorsPodcastMetrics(userId: number, podcastId: number) {
-    //
   }
 
   async removeSavedPodcast(userId: number, podcastId: number) {

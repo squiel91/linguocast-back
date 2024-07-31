@@ -18,14 +18,14 @@ import { diskStorage } from 'multer'
 import { extname } from 'path'
 import { PodcastsService } from 'src/podcasts/podcasts.service'
 
-@Controller('/api/user')
+@Controller('/api')
 export class UserController {
   constructor(
     private readonly userService: UserService,
     private readonly podcastsService: PodcastsService
   ) {}
 
-  @Post('/authenticate')
+  @Post('/user/authenticate')
   async authenticateUser(@Body() authenticateUserDto: AuthenticateUserDto) {
     return await this.userService.authenticateUser(
       authenticateUserDto.email,
@@ -33,12 +33,12 @@ export class UserController {
     )
   }
 
-  @Get('/')
+  @Get('/user/')
   viewUser(@UserIdOrThrowUnauthorized() userId: number) {
     return this.userService.viewUser(userId)
   }
 
-  @Post('/avatars')
+  @Post('/user/avatars')
   @UseInterceptors(
     FileInterceptor('image', {
       storage: diskStorage({
@@ -62,7 +62,7 @@ export class UserController {
     return `/dynamics/users/avatars/${image.filename}`
   }
 
-  @Patch('/')
+  @Patch('/user/')
   updateUser(
     @UserIdOrThrowUnauthorized() userId: number,
     @Body() userUpdateDto: UserUpdateDto
@@ -82,12 +82,12 @@ export class UserController {
     )
   }
 
-  @Get('/feed')
+  @Get('/user/feed')
   getUserFeed(@UserIdOrThrowUnauthorized() userId: number) {
     return this.userService.getUserFeed(userId)
   }
 
-  @Get('/podcasts/:podcastId')
+  @Get('/creators/podcasts/:podcastId')
   getUserPodcastById(
     @UserIdOrThrowUnauthorized() userId: number,
     @Param('podcastId') podcastId: number
@@ -95,47 +95,39 @@ export class UserController {
     return this.podcastsService.getUserPodcastsById(userId, podcastId)
   }
 
-  @Get('/podcasts')
+  @Get('/creators/podcasts')
   getUserPodcasts(@UserIdOrThrowUnauthorized() userId: number) {
     return this.podcastsService.getUserPodcasts(userId)
   }
 
-  @Get('/podcasts/:podcastId/episodes')
-  getUserEpisodes(
-    @UserIdOrThrowUnauthorized() userId: number,
-    @Param('podcastId') podcastId: number
-  ) {
-    return this.podcastsService.getUserPodcastEpisodes(userId, podcastId)
-  }
-
-  @Get('/journey')
+  @Get('/user/journey')
   getUserLearningJourney(@UserIdOrThrowUnauthorized() userId: number) {
     return this.userService.getUserLearningJourney(userId)
   }
 
-  @Get('/podcast-subscriptions')
+  @Get('/user/podcast-subscriptions')
   listUserPodcastSubscriptions(@UserIdOrThrowUnauthorized() userId: number) {
     return this.userService.listUserPodcastSubscriptions(userId)
   }
 
-  @Get('/new-episodes')
+  @Get('/user/new-episodes')
   listSubscribedButNotListenedEpisodes (
     @UserIdOrThrowUnauthorized() userId: number
   ) {
     return this.userService.listSubscribedButNotListenedEpisodes(userId)
   }
 
-  @Get('/recommended-podcasts')
+  @Get('/user/recommended-podcasts')
   listNotSubscribedPoscasts(@UserIdOrThrowUnauthorized() userId: number) {
     return this.userService.recommendedPodcasts(userId)
   }
 
-  @Get('/latest-episode-comments')
+  @Get('/user/latest-episode-comments')
   listLatestEpisodeComments(@UserIdOrThrowUnauthorized() userId: number) {
     return this.userService.listLatestEpisodeComments(userId)
   }
 
-  @Get('/listening-episodes')
+  @Get('/user/listening-episodes')
   listListenedButNotCompletedEpisodes (
     @UserIdOrThrowUnauthorized() userId: number
   ) {

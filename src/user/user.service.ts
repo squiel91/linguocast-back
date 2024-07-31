@@ -247,13 +247,13 @@ export default class UserService {
 
     // Notifications
     if (isPremium) {
-      this.notificationsService.sendNotification(
+      await this.notificationsService.sendNotification(
         NotificationChannels.PREMIUM_PURCHASED,
         `The [user with Id ${userId}](https://linguocast.com/users/${userId}) just purchased a premium membership.`
       )
     }
     if (isCreator) {
-      this.notificationsService.sendNotification(
+      await this.notificationsService.sendNotification(
         NotificationChannels.CREATOR_ACTIVATED,
         `The [user with Id ${userId}](https://linguocast.com/users/${userId}) just activated Creator mode.`
       )

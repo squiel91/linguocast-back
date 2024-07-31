@@ -13,12 +13,19 @@ import { generateExercises as gptGenerateExercises } from 'src/integrations/open
 import { convertIfChinese } from 'src/utils/chinese.utils'
 import { IUpdateEpisode } from './episodes.types'
 import getAudioDurationInSeconds from 'get-audio-duration'
+import {
+  NotificationChannels,
+  NotificationsService
+} from 'src/notifications/notifications.service'
 
 export type EpisodeTemplate = 'detailed' | 'succint'
 
 @Injectable()
 export class EpisodesService {
-  constructor(private readonly automationsService: AutomationsService) {}
+  constructor(
+    private readonly notificationsService: NotificationsService,
+    private readonly automationsService: AutomationsService
+  ) {}
 
   async viewEpisodeMetrics(userId: number, episode: number) {
     // TODO: this will need a refactor
@@ -68,24 +75,35 @@ export class EpisodesService {
         'Only the creator can add new episodes to their podcasts'
       )
 
-    return await db
-      .insertInto('episodes')
-      .values({
-        podcastId,
-        title,
-        description,
-        duration: await getAudioDurationInSeconds(audio),
-        contentUrl: audio,
-        image: image,
-        isFromRss: 0 // this is the default value, but to be explicit
-      })
-      .returning('id')
-      .executeTakeFirstOrThrow()
+    const episodeId = (
+      await db
+        .insertInto('episodes')
+        .values({
+          podcastId,
+          title,
+          description,
+          duration: await getAudioDurationInSeconds(
+            'http://localhost:' + process.env.PORT + audio
+          ),
+          contentUrl: audio,
+          image: image,
+          isFromRss: 0 // this is the default value, but to be explicit
+        })
+        .returning('id')
+        .executeTakeFirstOrThrow()
+    ).id
+
+    await this.notificationsService.sendNotification(
+      NotificationChannels.EPISODE_CREATION,
+      `[${title}](https://linguocast.com/creators/podcasts/${podcastId}/episodes/${episodeId}/edit) manually created`
+    )
+    return { id: episodeId }
   }
 
-  createEpisodesFromFeed(episodes: Episode[], podcastId: number) {
+  async createEpisodesFromFeed(episodes: Episode[], podcastId: number) {
     // TODO: complete the rest of metadata
-    db.insertInto('episodes')
+    await db
+      .insertInto('episodes')
       .values(
         episodes
           .slice()

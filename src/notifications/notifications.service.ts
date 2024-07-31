@@ -4,6 +4,7 @@ import { Client, GatewayIntentBits, TextChannel } from 'discord.js'
 export enum NotificationChannels {
   SUGGESTED_PODCAST,
   CREATED_PODCAST,
+  EPISODE_CREATION,
   NEW_COMMENT,
   PREMIUM_PURCHASED,
   LEARNER_SIGNUP,
@@ -37,6 +38,10 @@ export class NotificationsService implements OnModuleInit {
         break
       case NotificationChannels.CREATED_PODCAST:
         channelId = process.env.CREATED_PODCAST_NOTIFICATIONS_DISCORD_CHANNEL_ID
+        break
+      case NotificationChannels.EPISODE_CREATION:
+        channelId =
+          process.env.EPISODE_CREATION_NOTIFICATIONS_DISCORD_CHANNEL_ID
         break
       case NotificationChannels.PREMIUM_PURCHASED:
         channelId =

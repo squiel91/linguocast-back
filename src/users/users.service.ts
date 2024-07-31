@@ -104,12 +104,12 @@ export class UsersService {
 
     // Notifications
     if (isCreator) {
-      this.notificationsService.sendNotification(
+      await this.notificationsService.sendNotification(
         NotificationChannels.CREATOR_SIGNUP,
         `[${name}](https://linguocast.com/users/${userId}) (${email}) just signed-up for ${learning + (variant ? '/' + variant : '')}`
       )
     } else {
-      this.notificationsService.sendNotification(
+      await this.notificationsService.sendNotification(
         NotificationChannels.LEARNER_SIGNUP,
         `[${name}](https://linguocast.com/users/${userId}) (${email}) just signed-up for ${level} ${learning + (variant ? '/' + variant : '')}`
       )

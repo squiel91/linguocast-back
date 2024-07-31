@@ -26,8 +26,7 @@ import {
 } from './podcasts.validation'
 import { FileInterceptor } from '@nestjs/platform-express'
 import { diskStorage } from 'multer'
-import { extname, join } from 'path'
-import { saveImageFromUrl } from 'src/utils/file.utils'
+import { extname } from 'path'
 import {
   UserIdOrNull,
   UserIdOrThrowUnauthorized
