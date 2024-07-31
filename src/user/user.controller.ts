@@ -7,6 +7,7 @@ import {
   ParseFilePipeBuilder,
   Patch,
   Post,
+  Query,
   UploadedFile,
   UseInterceptors
 } from '@nestjs/common'
@@ -17,12 +18,14 @@ import { FileInterceptor } from '@nestjs/platform-express'
 import { diskStorage } from 'multer'
 import { extname } from 'path'
 import { PodcastsService } from 'src/podcasts/podcasts.service'
+import { EpisodesService } from 'src/episodes/episodes.service'
 
 @Controller('/api')
 export class UserController {
   constructor(
     private readonly userService: UserService,
-    private readonly podcastsService: PodcastsService
+    private readonly podcastsService: PodcastsService,
+    private readonly episodesService: EpisodesService
   ) {}
 
   @Post('/user/authenticate')
@@ -98,6 +101,18 @@ export class UserController {
   @Get('/creators/podcasts')
   getUserPodcasts(@UserIdOrThrowUnauthorized() userId: number) {
     return this.podcastsService.getUserPodcasts(userId)
+  }
+  @Get('/creators/podcasts/:podcastId/episodes')
+  getCreatorsPodcastEpisodes(
+    @UserIdOrThrowUnauthorized() userId: number,
+    @Param('podcastId') podcastId: string,
+    @Query('size') size = '10'
+  ) {
+    return this.episodesService.getCreatorsPodcastEpisodes(
+      userId,
+      +podcastId,
+      +size
+    )
   }
 
   @Get('/user/journey')

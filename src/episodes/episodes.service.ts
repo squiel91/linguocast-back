@@ -27,6 +27,129 @@ export class EpisodesService {
     private readonly automationsService: AutomationsService
   ) {}
 
+  async getCreatorsPodcastEpisodes(
+    userId: number,
+    podcastId: number,
+    size: number
+  ) {
+    const podcast = await db
+      .selectFrom('podcasts')
+      .select('byUserId')
+      .where('id', '=', podcastId)
+      .where('isDeleted', '=', 0)
+      .executeTakeFirst()
+    if (!podcast) throw new NotFoundException()
+
+    if (userId !== podcast.byUserId) {
+      const isRequestedAdmin = (
+        await db
+          .selectFrom('users')
+          .select('isAdmin')
+          .where('id', '=', userId)
+          .executeTakeFirstOrThrow()
+      ).isAdmin
+      if (!isRequestedAdmin)
+        throw new ForbiddenException(
+          'Only the owner and admins can access the podcast episodes'
+        )
+    }
+
+    return (
+      await db
+        .selectFrom('episodes')
+        .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
+        .leftJoin(
+          db
+            .selectFrom('comments')
+            .select(({ fn }) => [
+              'comments.resourceId',
+              fn<number>('COUNT', ['comments.id']).as('count')
+            ])
+            .where('comments.resourceType', '=', 'episodes')
+            .groupBy('comments.resourceId')
+            .as('episodeCommentCount'),
+          'episodeCommentCount.resourceId',
+          'episodes.id'
+        )
+        .leftJoin(
+          db
+            .selectFrom('embeddeds')
+            .select(({ fn }) => [
+              'embeddeds.episodeId',
+              fn<number>('COUNT', ['embeddeds.id']).as('count')
+            ])
+            .groupBy('embeddeds.episodeId')
+            .as('episodeEmbeddedCount'),
+          'episodeEmbeddedCount.episodeId',
+          'episodes.id'
+        )
+        .leftJoin(
+          db
+            .selectFrom('exercises')
+            .select(({ fn }) => [
+              'exercises.episodeId',
+              fn<number>('COUNT', ['exercises.id']).as('count')
+            ])
+            .groupBy('exercises.episodeId')
+            .as('episodeExerciseCount'),
+          'episodeExerciseCount.episodeId',
+          'episodes.id'
+        )
+        .leftJoin(
+          db
+            .selectFrom('reproductions')
+            .select(({ fn }) => [
+              'reproductions.episodeId',
+              fn<number>('COUNT', ['reproductions.userId']).as('count')
+            ])
+            .groupBy('reproductions.episodeId')
+            .as('episodeReproductionsCount'),
+          'episodeReproductionsCount.episodeId',
+          'episodes.id'
+        )
+        .select(({ fn, val }) => [
+          'episodes.id',
+          'episodes.podcastId',
+          'podcasts.name as podcastName',
+          'podcasts.coverImage as podcastImage',
+          'episodes.title',
+          'episodes.image',
+          'episodes.duration',
+          'episodes.publishedAt',
+          'episodes.description',
+          'episodes.transcript',
+          'episodes.contentUrl',
+          fn<number>('IFNULL', ['episodeCommentCount.count', val(0)]).as(
+            'commentsCount'
+          ),
+          fn<number>('IFNULL', ['episodeEmbeddedCount.count', val(0)]).as(
+            'embeddedCount'
+          ),
+          fn<number>('IFNULL', ['episodeExerciseCount.count', val(0)]).as(
+            'exercisesCount'
+          ),
+          fn<number>('IFNULL', ['episodeReproductionsCount.count', val(0)]).as(
+            'reproductionsCount'
+          ),
+          'episodes.isListed',
+          'episodes.isPremium',
+          'episodes.createdAt',
+          'episodes.updatedAt'
+        ])
+        .where('episodes.podcastId', '=', podcastId)
+        .where('episodes.isDeleted', '=', 0)
+        .orderBy('episodes.id', 'desc')
+        .limit(size)
+        .execute()
+    ).map(({ isListed, isPremium, ...restEpisode }) => ({
+      ...restEpisode,
+      isListed: !!isListed,
+      isPremium: !!isPremium
+    }))
+
+    // reproductionsCount: number
+  }
+
   async viewEpisodeMetrics(userId: number, episode: number) {
     // TODO: this will need a refactor
     return db
