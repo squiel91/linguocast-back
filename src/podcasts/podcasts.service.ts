@@ -67,6 +67,21 @@ export class PodcastsService {
         'podcastsEpisodesCount.podcastId',
         'podcasts.id'
       )
+      .leftJoin(
+        db
+          .selectFrom('episodes')
+          .select(({ fn, val }) => [
+            'podcastId',
+            fn<number>('IFNULL', [fn<number>('COUNT', ['id']), val(0)]).as(
+              'episodesCount'
+            ),
+            fn.max('publishedAt').as('lastEpisodeDate')
+          ])
+          .groupBy('podcastId')
+          .as('podcastsEpisodesInfo'),
+        'podcastsEpisodesInfo.podcastId',
+        'podcasts.id'
+      )
       .select(({ fn, val }) => [
         'podcasts.id',
         'podcasts.name',
@@ -76,6 +91,7 @@ export class PodcastsService {
         'coverImage',
         'levels as rawLevels',
         'languages.name as targetLanguage',
+        'podcastsEpisodesInfo.lastEpisodeDate',
         fn<number>('COUNT', [fn('DISTINCT', ['savedPodcasts.userId'])]).as(
           'savedCount'
         ),
@@ -462,25 +478,15 @@ export class PodcastsService {
   async getPodcastEpisodes(
     podcastId: number,
     userId: number | null,
-    fromEpisodeId?: number,
+    fromEpisodeId: number | null,
     size: number = 5
   ) {
-    const episodes = await this.episodesService.getPodcastEpisodes(
+    return await this.episodesService.getPodcastEpisodes(
       podcastId,
       userId,
       fromEpisodeId,
       size
     )
-    const microPodcast = await db
-      .selectFrom('podcasts')
-      .select(['id', 'name', 'coverImage'])
-      .where('id', '=', podcastId)
-      .executeTakeFirstOrThrow()
-
-    return episodes.map(episode => ({
-      ...episode,
-      podcast: microPodcast
-    }))
   }
 
   async createPodcastFromRss(

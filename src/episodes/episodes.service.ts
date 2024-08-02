@@ -20,6 +20,8 @@ import {
 
 export type EpisodeTemplate = 'detailed' | 'succint'
 
+const PAGE_SIZE = 50
+
 @Injectable()
 export class EpisodesService {
   constructor(
@@ -30,8 +32,9 @@ export class EpisodesService {
   async getCreatorsPodcastEpisodes(
     userId: number,
     podcastId: number,
-    size: number
+    fromEpisodeId: number | null
   ) {
+    console.log({ fromEpisodeId })
     const podcast = await db
       .selectFrom('podcasts')
       .select('byUserId')
@@ -138,16 +141,15 @@ export class EpisodesService {
         ])
         .where('episodes.podcastId', '=', podcastId)
         .where('episodes.isDeleted', '=', 0)
+        .where('episodes.id', fromEpisodeId ? '<' : '!=', fromEpisodeId ?? -1) // Hack: to make it always return if not fromEpisodeId set
         .orderBy('episodes.id', 'desc')
-        .limit(size)
+        .limit(PAGE_SIZE)
         .execute()
     ).map(({ isListed, isPremium, ...restEpisode }) => ({
       ...restEpisode,
       isListed: !!isListed,
       isPremium: !!isPremium
     }))
-
-    // reproductionsCount: number
   }
 
   async viewEpisodeMetrics(userId: number, episode: number) {
@@ -404,28 +406,54 @@ export class EpisodesService {
         .executeTakeFirstOrThrow()
     }
 
-    const user = await db
-      .selectFrom('users')
-      .select(['isPremium', 'learningLanguageId', 'languageVariant'])
-      .where('id', '=', userId)
+    const user =
+      userId &&
+      (await db
+        .selectFrom('users')
+        .select(['isPremium', 'learningLanguageId', 'languageVariant'])
+        .where('id', '=', userId)
+        .executeTakeFirst())
+
+    const episode = await db
+      .selectFrom('episodes')
+      .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
+      .innerJoin('languages', 'languages.id', 'podcasts.targetLanguageId')
+      .leftJoin(
+        db
+          .selectFrom('reproductions')
+          .selectAll()
+          .where('userId', '=', userId)
+          .as('userReproductions'),
+        'userReproductions.episodeId',
+        'episodes.id'
+      )
+      .select([
+        'episodes.id',
+        'episodes.podcastId',
+        'podcasts.name as podcastName',
+        'podcasts.coverImage as podcastImage',
+        'languages.name as targetLanguage',
+        'podcasts.byUserId as creatorId',
+        'episodes.title',
+        'episodes.duration',
+        'episodes.description',
+        'episodes.transcript',
+        'episodes.contentUrl',
+        'episodes.image',
+        'episodes.publishedAt',
+        sql<number>`(SELECT COUNT(*) FROM comments WHERE resourceType = 'episodes' AND resourceId = episodes.id)`.as(
+          'commentsCount'
+        ),
+        'userReproductions.leftOn',
+        'userReproductions.completedAt'
+      ])
+      .where('episodes.isListed', '=', 1)
+      .where('episodes.isDeleted', '=', 0)
+      .where('episodes.id', '=', episodeId)
+      .orderBy('episodes.id', 'desc')
       .executeTakeFirst()
 
-    const episode = await this.episodeBaseQuery(userId)
-      .where('episodes.id', '=', episodeId)
-      .executeTakeFirstOrThrow()
-
-    const podcast = await db
-      .selectFrom('podcasts')
-      .innerJoin('languages', 'languages.id', 'podcasts.targetLanguageId')
-      .select([
-        'podcasts.id',
-        'podcasts.name',
-        'coverImage',
-        'languages.name as targetLanguage',
-        'podcasts.byUserId as creatorId'
-      ])
-      .where('podcasts.id', '=', episode.podcastId)
-      .executeTakeFirstOrThrow()
+    if (!episode) throw new NotFoundException()
 
     const { title, description, transcript, ...episodeRest } = episode
     return {
@@ -437,26 +465,75 @@ export class EpisodesService {
         user?.isPremium ?? false
           ? transcript // for premium users it send the complete transcript
           : transcript?.slice(0, Math.ceil((transcript?.length ?? 0) / 2))
-      ),
-      podcast
+      )
     }
   }
 
   async getPodcastEpisodes(
     podcastId: number,
-    userId?: number,
-    fromEpisodeId?: number,
+    userId: number | null,
+    fromEpisodeId: number | null,
     size = 5
   ) {
-    return await (
-      fromEpisodeId
-        ? this.episodeBaseQuery(userId).where('episodes.id', '<', fromEpisodeId)
-        : this.episodeBaseQuery(userId)
-    )
+    const episodes = await db
+      .selectFrom('episodes')
+      .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
+      .innerJoin('languages', 'languages.id', 'podcasts.targetLanguageId')
+      .leftJoin(
+        db
+          .selectFrom('reproductions')
+          .selectAll()
+          .where('userId', '=', userId)
+          .as('userReproductions'),
+        'userReproductions.episodeId',
+        'episodes.id'
+      )
+      .select(({ fn, val, eb }) => [
+        'episodes.id',
+        'episodes.podcastId',
+        'podcasts.name as podcastName',
+        'podcasts.coverImage as podcastImage',
+        'languages.name as targetLanguage',
+        'podcasts.byUserId as creatorId',
+        'episodes.title',
+        'episodes.duration',
+        fn<string>('substr', ['episodes.description', val(0), val(400)]).as(
+          'truncatedDescription'
+        ),
+        eb('episodes.transcript', 'is not', null).as('hasTranscript'),
+        'episodes.contentUrl',
+        'episodes.image',
+        'episodes.publishedAt',
+        sql<number>`(SELECT COUNT(*) FROM comments WHERE resourceType = 'episodes' AND resourceId = episodes.id)`.as(
+          'commentsCount'
+        ),
+        'userReproductions.leftOn',
+        'userReproductions.completedAt'
+      ])
+      .where('episodes.isListed', '=', 1)
+      .where('episodes.isDeleted', '=', 0)
       .where('podcastId', '=', podcastId)
+      .where('episodes.id', fromEpisodeId ? '<' : '!=', fromEpisodeId ?? -1) // Hack: to make it always return if not fromEpisodeId set
       .orderBy('episodes.id', 'desc')
       .limit(size)
       .execute()
+
+    const user =
+      userId &&
+      (await db
+        .selectFrom('users')
+        .select(['isPremium', 'learningLanguageId', 'languageVariant'])
+        .where('id', '=', userId)
+        .executeTakeFirst())
+
+    return episodes.map(
+      ({ title, truncatedDescription, hasTranscript, ...episodeRest }) => ({
+        ...episodeRest,
+        title: convertIfChinese(user, title),
+        truncatedDescription: convertIfChinese(user, truncatedDescription),
+        hasTranscript: !!hasTranscript
+      })
+    )
   }
 
   async updateReproduction(
@@ -492,59 +569,6 @@ export class EpisodesService {
           completedAt: hasCompleted ? sql`CURRENT_TIMESTAMP` : null
         })
         .execute()
-    }
-  }
-
-  private episodeBaseQuery(userId?: number) {
-    if (userId) {
-      return db
-        .selectFrom('episodes')
-        .leftJoin(
-          db
-            .selectFrom('reproductions')
-            .selectAll()
-            .where('userId', '=', userId)
-            .as('userReproductions'),
-          'userReproductions.episodeId',
-          'episodes.id'
-        )
-        .select([
-          'episodes.id',
-          'podcastId',
-          'title',
-          'duration',
-          'description',
-          'transcript',
-          'episodes.contentUrl',
-          'episodes.image',
-          'publishedAt',
-          sql<number>`(SELECT COUNT(*) FROM comments WHERE resourceType = 'episodes' AND resourceId = episodes.id)`.as(
-            'commentsCount'
-          ),
-          'userReproductions.leftOn',
-          'userReproductions.completedAt'
-        ])
-        .where('episodes.isListed', '=', 1)
-        .where('episodes.isDeleted', '=', 0)
-    } else {
-      return db
-        .selectFrom('episodes')
-        .select([
-          'episodes.id',
-          'podcastId',
-          'title',
-          'duration',
-          'description',
-          'transcript',
-          'episodes.contentUrl',
-          'episodes.image',
-          'publishedAt',
-          sql<number>`(SELECT COUNT(*) FROM comments WHERE resourceType = 'episodes' AND resourceId = episodes.id)`.as(
-            'commentsCount'
-          )
-        ])
-        .where('episodes.isListed', '=', 1)
-        .where('episodes.isDeleted', '=', 0)
     }
   }
 

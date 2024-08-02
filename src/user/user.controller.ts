@@ -106,12 +106,12 @@ export class UserController {
   getCreatorsPodcastEpisodes(
     @UserIdOrThrowUnauthorized() userId: number,
     @Param('podcastId') podcastId: string,
-    @Query('size') size = '10'
+    @Query('from') fromEpisodeId: string = null
   ) {
     return this.episodesService.getCreatorsPodcastEpisodes(
       userId,
       +podcastId,
-      +size
+      fromEpisodeId ? +fromEpisodeId : null
     )
   }
 

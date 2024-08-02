@@ -75,13 +75,13 @@ export class PodcastsController {
   async getPodcastEpisodes(
     @UserIdOrNull() userId: number | null,
     @Param('podcastId') podcastId: number,
-    @Query('from') fromEpisodeId?: number,
+    @Query('from') fromEpisodeId?: string,
     @Query('size') size?: number
   ) {
     return await this.podcastsService.getPodcastEpisodes(
       podcastId,
       userId,
-      fromEpisodeId,
+      fromEpisodeId ? +fromEpisodeId : null,
       size
     )
   }
