@@ -20,7 +20,7 @@ import {
 
 export type EpisodeTemplate = 'detailed' | 'succint'
 
-const PAGE_SIZE = 50
+const PAGE_SIZE = 5
 
 @Injectable()
 export class EpisodesService {
