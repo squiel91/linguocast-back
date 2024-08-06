@@ -137,6 +137,7 @@ interface DictionaryTable {
   word: string
   pronunciation?: string
   definitions: string
+  level: number | null
 }
 
 interface UserWordsTable {

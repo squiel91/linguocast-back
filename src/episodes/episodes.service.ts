@@ -208,7 +208,7 @@ export class EpisodesService {
           title,
           description,
           duration: await getAudioDurationInSeconds(
-            'http://localhost:' + process.env.PORT + audio
+            'https://linguocast.com' + audio
           ),
           contentUrl: audio,
           image: image,

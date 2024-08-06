@@ -57,6 +57,7 @@ export class WordsService {
         'languages.name as language',
         'image',
         'word',
+        'level',
         'pronunciation',
         'definitions as rawTranslations',
         'givenUserWords.createdAt as userSavedDate'
@@ -71,7 +72,8 @@ export class WordsService {
       .where('measureWords.wordId', '=', wordId)
       .execute()
 
-    const { word, rawTranslations, userSavedDate, pronunciation, ...rest } = rawWord
+    const { word, rawTranslations, userSavedDate, pronunciation, ...rest } =
+      rawWord
     return {
       ...rest,
       word:
@@ -97,6 +99,7 @@ export class WordsService {
       .where('id', '=', userId)
       .executeTakeFirstOrThrow()
 
+    // TODO: try not to repeat this.
     const rawWords = await db
       .selectFrom('userWords')
       .innerJoin('dictionary', 'dictionary.id', 'userWords.wordId')
@@ -106,6 +109,7 @@ export class WordsService {
         'languages.name as language',
         'image',
         'word',
+        'level',
         'pronunciation',
         'reviewScheduledFor',
         'lastReviewInterval',
