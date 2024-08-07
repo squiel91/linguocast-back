@@ -12,6 +12,7 @@ import {
 } from './words.utils'
 import { daySinceEpoche } from 'src/utils/date.utils'
 import { Difficulty } from './words.constants'
+import { episode } from 'podcast-partytime/dist/parser/phase/phase-2'
 
 @Injectable()
 export class WordsService {
@@ -72,6 +73,27 @@ export class WordsService {
       .where('measureWords.wordId', '=', wordId)
       .execute()
 
+    const examples = await db
+      .selectFrom('wordExamples')
+      .innerJoin('episodes', 'episodes.id', 'wordExamples.episodeId')
+      .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
+      .select([
+        'wordExamples.id',
+        'wordExamples.episodeId',
+        'episodes.title as episodeTitle',
+        'episodes.image as episodeImage',
+        'podcasts.name as podcastName',
+        'podcasts.coverImage as podcastImage',
+        'wordExamples.context',
+        'wordExamples.time'
+      ])
+      .where('wordId', '=', wordId)
+      .where('episodes.isListed', '=', 1)
+      .where('podcasts.isListed', '=', 1)
+      .where('episodes.isDeleted', '=', 0)
+      .where('podcasts.isDeleted', '=', 0)
+      .execute()
+
     const { word, rawTranslations, userSavedDate, pronunciation, ...rest } =
       rawWord
     return {
@@ -88,7 +110,8 @@ export class WordsService {
           ? convertNumericToTonalPinyin(pronunciation)
           : pronunciation,
       saved: !!userSavedDate,
-      measures: measureWords
+      measures: measureWords,
+      examples
     }
   }
 
@@ -104,13 +127,34 @@ export class WordsService {
       .selectFrom('userWords')
       .innerJoin('dictionary', 'dictionary.id', 'userWords.wordId')
       .innerJoin('languages', 'dictionary.languageId', 'languages.id')
-      .select([
+      .leftJoin(
+        db
+          .selectFrom('wordExamples')
+          .innerJoin('episodes', 'episodes.id', 'wordExamples.episodeId')
+          .innerJoin('podcasts', 'podcasts.id', 'episodes.podcastId')
+          .select(({ fn }) => [
+            'wordId',
+            fn<number>('COUNT', ['wordExamples.id']).as('count')
+          ])
+          .where('episodes.isListed', '=', 1)
+          .where('podcasts.isListed', '=', 1)
+          .where('episodes.isDeleted', '=', 0)
+          .where('podcasts.isDeleted', '=', 0)
+          .groupBy('wordExamples.wordId')
+          .as('wordExamplesCount'),
+        'wordExamplesCount.wordId',
+        'dictionary.id'
+      )
+      .select(({ fn, val }) => [
         'dictionary.id',
         'languages.name as language',
         'image',
         'word',
         'level',
         'pronunciation',
+        fn<number>('IFNULL', ['wordExamplesCount.count', val(0)]).as(
+          'examplesCount'
+        ),
         'reviewScheduledFor',
         'lastReviewInterval',
         'definitions as rawTranslations',

@@ -140,6 +140,14 @@ interface DictionaryTable {
   level: number | null
 }
 
+interface WordExamplesTable {
+  id: number
+  episodeId: number
+  wordId: number
+  time: number
+  context: string
+}
+
 interface UserWordsTable {
   userId: number
   wordId: number
@@ -194,6 +202,7 @@ export interface Database {
   exerciseResponses: ExerciseResponseTable
   embeddeds: EmbeddedsTable
   dictionary: DictionaryTable
+  wordExamples: WordExamplesTable
   userWords: UserWordsTable
   dailyActivity: DailyActivityTable
   measureWords: MeasureWordsTable

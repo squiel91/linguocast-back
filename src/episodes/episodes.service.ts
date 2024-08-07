@@ -22,6 +22,33 @@ export type EpisodeTemplate = 'detailed' | 'succint'
 
 const PAGE_SIZE = 5
 
+interface TranscriptEntry {
+  startTime: number
+  endTime: number
+  text: string
+}
+
+interface Occurrence {
+  episodeId: number
+  wordId: number
+  time: number
+  context: string
+}
+
+const getTokenIndexForCharIndex = (
+  entries: TranscriptEntry[],
+  charIndex: number
+): number => {
+  let currentIndex = 0;
+  for (let i = 0; i < entries.length; i++) {
+    currentIndex += entries[i].text.length;
+    if (currentIndex > charIndex) {
+      return i;
+    }
+  }
+  return entries.length - 1;
+}
+
 @Injectable()
 export class EpisodesService {
   constructor(
@@ -34,7 +61,6 @@ export class EpisodesService {
     podcastId: number,
     fromEpisodeId: number | null
   ) {
-    console.log({ fromEpisodeId })
     const podcast = await db
       .selectFrom('podcasts')
       .select('byUserId')
@@ -298,6 +324,63 @@ export class EpisodesService {
       })
       .where('id', '=', episodeId)
       .execute()
+
+    if (transcript) {
+      // udpate the wordExamples
+      await db
+        .deleteFrom('wordExamples')
+        .where('episodeId', '=', episodeId)
+        .execute()
+
+      const wordNeedles = await db
+        .selectFrom('dictionary')
+        .select(['id', 'word'])
+        .where('level', 'is not', null)
+        .execute()
+
+      const CONTEXT_WINDOW = 8
+
+      const occurrences: Occurrence[] = []
+
+      for (const wordNeedle of wordNeedles) {
+        const lines = transcript.split('\n').filter(line => line.trim())
+        const entries: TranscriptEntry[] = lines.map(line => {
+          const [startTime, endTime, text] = line.split('\t')
+          return {
+            startTime: parseFloat(startTime),
+            endTime: parseFloat(endTime),
+            text
+          }
+        })
+
+        const fullText = entries.map(entry => entry.text).join('')
+
+        let index = 0
+        while ((index = fullText.indexOf(wordNeedle.word, index)) !== -1) {
+          const startTokenIndex = getTokenIndexForCharIndex(entries, index)
+          const endTokenIndex = getTokenIndexForCharIndex(
+            entries,
+            index + wordNeedle.word.length - 1
+          )
+
+          const contextStart = Math.max(0, startTokenIndex - CONTEXT_WINDOW)
+          const contextEnd = Math.min(
+            entries.length - 1,
+            endTokenIndex + CONTEXT_WINDOW
+          )
+
+          const context = entries
+            .slice(contextStart, contextEnd + 1)
+            .map(entry => entry.text)
+            .join('')
+          const time = entries[startTokenIndex].startTime
+
+          occurrences.push({ episodeId, wordId: wordNeedle.id, context, time })
+          index += wordNeedle.word.length
+        }
+      }
+      await db.insertInto('wordExamples').values(occurrences).execute()
+    }
   }
 
   async autogenerateTranscript(episodeId: number) {
